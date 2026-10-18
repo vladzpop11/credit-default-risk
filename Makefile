@@ -42,10 +42,16 @@ evaluate:
 	uv run python -m credit_default_risk.evaluate
 
 serve:
-	@echo "serve: not implemented yet (Project 1, step 8)"
+	uv run uvicorn credit_default_risk.api:app --host 127.0.0.1 --port $(PORT)
 
-docker-build:
+docker-build: models/model.joblib
 	docker build --platform=linux/amd64 -t $(IMAGE) .
 
 docker-run:
-	@echo "docker-run: not implemented yet (Project 1, step 8)"
+	docker run --rm -d --name credit-default-risk -p $(PORT):8000 $(IMAGE)
+
+docker-stop:
+	docker stop credit-default-risk
+
+models/model.joblib:
+	@echo "No trained model: run make data split train first." && exit 1

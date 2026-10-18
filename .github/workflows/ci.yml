@@ -18,4 +18,7 @@ jobs:
 
       - run: make check
 
+      # Rebuild the model from the public source, then build the serving image.
+      - run: make data split train
+
       - run: docker build -t credit-default-risk:ci .

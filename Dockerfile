@@ -21,7 +21,15 @@ COPY src ./src
 COPY configs ./configs
 RUN uv sync --frozen --no-dev
 
+# The model is trained outside the image (make train) and copied in.
+COPY models/model.joblib ./models/model.joblib
+ENV MODEL_PATH=/app/models/model.joblib
+
 # Files stay owned by root; the app only needs to read them.
 USER app
 
-CMD ["python", "-c", "import credit_default_risk; print('credit_default_risk', credit_default_risk.__version__)"]
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"]
+
+CMD ["uvicorn", "credit_default_risk.api:app", "--host", "0.0.0.0", "--port", "8000"]
