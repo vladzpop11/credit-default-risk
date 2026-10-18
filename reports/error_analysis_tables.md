@@ -6,70 +6,70 @@ Out-of-fold predictions on the training split, threshold 0.16. Recall = share of
 
 | feature | mean | std |
 | --- | --- | --- |
-| PAY_1 | 0.126 | 0.017 |
+| PAY_1 | 0.125 | 0.016 |
 | months_late | 0.031 | 0.003 |
-| max_months_late | 0.017 | 0.005 |
-| BILL_AMT1 | 0.012 | 0.004 |
-| PAY_AMT3 | 0.009 | 0.004 |
-| utilization_1 | 0.008 | 0.003 |
-| LIMIT_BAL | 0.008 | 0.003 |
-| PAY_AMT2 | 0.007 | 0.001 |
-| PAY_AMT6 | 0.005 | 0.003 |
+| max_months_late | 0.017 | 0.003 |
+| BILL_AMT1 | 0.014 | 0.003 |
+| PAY_AMT3 | 0.008 | 0.004 |
+| utilization_1 | 0.008 | 0.002 |
+| LIMIT_BAL | 0.008 | 0.002 |
+| PAY_AMT2 | 0.006 | 0.001 |
 | EDUCATION | 0.005 | 0.002 |
+| PAY_AMT6 | 0.004 | 0.002 |
+| BILL_AMT6 | 0.004 | 0.001 |
 | PAY_AMT5 | 0.004 | 0.002 |
-| PAY_AMT1 | 0.003 | 0.002 |
 
 ## Most recent repayment status (PAY_1)
 
 | segment | clients | default rate | flagged | recall | false positive rate | mean predicted |
 | --- | --- | --- | --- | --- | --- | --- |
-| paid / revolving (≤0) | 18,506 | 0.137 | 0.313 | 0.530 | 0.279 | 0.136 |
-| 1 month late | 3,000 | 0.344 | 0.874 | 0.954 | 0.832 | 0.344 |
-| 2+ months late | 2,494 | 0.697 | 0.998 | 0.999 | 0.995 | 0.693 |
+| paid / revolving (≤0) | 18,506 | 0.137 | 0.314 | 0.533 | 0.280 | 0.137 |
+| 1 month late | 3,000 | 0.344 | 0.872 | 0.953 | 0.830 | 0.343 |
+| 2+ months late | 2,494 | 0.697 | 0.998 | 0.999 | 0.995 | 0.692 |
 
 ## Months late in the last 6
 
 | segment | clients | default rate | flagged | recall | false positive rate | mean predicted |
 | --- | --- | --- | --- | --- | --- | --- |
-| never late | 15,896 | 0.115 | 0.224 | 0.386 | 0.203 | 0.114 |
-| 1-2 months | 5,104 | 0.330 | 0.855 | 0.932 | 0.817 | 0.328 |
-| 3-6 months | 3,000 | 0.599 | 0.995 | 0.998 | 0.990 | 0.600 |
+| never late | 15,896 | 0.115 | 0.224 | 0.387 | 0.203 | 0.114 |
+| 1-2 months | 5,104 | 0.330 | 0.858 | 0.934 | 0.820 | 0.328 |
+| 3-6 months | 3,000 | 0.599 | 0.995 | 0.997 | 0.993 | 0.600 |
 
 ## Credit limit quintile
 
 | segment | clients | default rate | flagged | recall | false positive rate | mean predicted |
 | --- | --- | --- | --- | --- | --- | --- |
-| Q1 lowest | 6,146 | 0.322 | 0.711 | 0.869 | 0.635 | 0.322 |
-| Q2 | 3,819 | 0.259 | 0.503 | 0.807 | 0.397 | 0.258 |
-| Q3 | 4,922 | 0.200 | 0.403 | 0.719 | 0.325 | 0.199 |
-| Q4 | 4,380 | 0.169 | 0.336 | 0.652 | 0.272 | 0.165 |
-| Q5 highest | 4,733 | 0.131 | 0.246 | 0.583 | 0.195 | 0.130 |
+| Q1 lowest | 6,146 | 0.322 | 0.708 | 0.877 | 0.628 | 0.322 |
+| Q2 | 3,819 | 0.259 | 0.506 | 0.800 | 0.403 | 0.259 |
+| Q3 | 4,922 | 0.200 | 0.404 | 0.715 | 0.326 | 0.198 |
+| Q4 | 4,380 | 0.169 | 0.338 | 0.659 | 0.273 | 0.165 |
+| Q5 highest | 4,733 | 0.131 | 0.247 | 0.575 | 0.198 | 0.130 |
 
 ## Education
 
 | segment | clients | default rate | flagged | recall | false positive rate | mean predicted |
 | --- | --- | --- | --- | --- | --- | --- |
-| graduate school | 8,455 | 0.193 | 0.405 | 0.735 | 0.326 | 0.191 |
-| high school | 3,903 | 0.250 | 0.504 | 0.798 | 0.406 | 0.250 |
-| other | 386 | 0.073 | 0.111 | 0.179 | 0.106 | 0.082 |
-| university | 11,256 | 0.238 | 0.487 | 0.780 | 0.395 | 0.236 |
+| graduate school | 8,455 | 0.193 | 0.403 | 0.732 | 0.324 | 0.192 |
+| high school | 3,903 | 0.250 | 0.503 | 0.802 | 0.403 | 0.250 |
+| other | 386 | 0.073 | 0.117 | 0.179 | 0.112 | 0.081 |
+| university | 11,256 | 0.238 | 0.489 | 0.782 | 0.398 | 0.236 |
 
 ## Sex (not a model input; fairness audit)
 
 | segment | clients | default rate | flagged | recall | false positive rate | mean predicted |
 | --- | --- | --- | --- | --- | --- | --- |
-| female | 14,514 | 0.206 | 0.434 | 0.755 | 0.351 | 0.211 |
-| male | 9,486 | 0.244 | 0.485 | 0.780 | 0.390 | 0.234 |
+| female | 14,514 | 0.206 | 0.436 | 0.755 | 0.353 | 0.211 |
+| male | 9,486 | 0.244 | 0.484 | 0.782 | 0.388 | 0.234 |
 
 ## Age band (not a model input; fairness audit)
 
 | segment | clients | default rate | flagged | recall | false positive rate | mean predicted |
 | --- | --- | --- | --- | --- | --- | --- |
-| 21-25 | 3,104 | 0.269 | 0.586 | 0.819 | 0.500 | 0.271 |
-| 26-40 | 14,336 | 0.203 | 0.420 | 0.744 | 0.338 | 0.206 |
-| 41-60 | 6,346 | 0.238 | 0.466 | 0.777 | 0.369 | 0.225 |
-| 61+ | 214 | 0.276 | 0.505 | 0.814 | 0.387 | 0.252 |
+| 21-25 | 3,104 | 0.269 | 0.583 | 0.819 | 0.496 | 0.271 |
+| 26-40 | 14,336 | 0.203 | 0.423 | 0.745 | 0.341 | 0.206 |
+| 41-60 | 6,346 | 0.238 | 0.464 | 0.778 | 0.366 | 0.225 |
+| 61+ | 214 | 0.276 | 0.495 | 0.831 | 0.368 | 0.251 |
 
 ## Missed defaulters
 
-1242 of 5309 defaulters were not flagged. 90.4% of them were never late in the last 6 months (vs 34.5% of all defaulters).
+1237 of 5309 defaulters were not flagged. 90.6% of them were never late in the last 6 months (vs 34.5% of all defaulters).

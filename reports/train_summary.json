@@ -1,6 +1,6 @@
 {
   "package_version": "0.1.0",
-  "trained_at": "2026-10-18T14:56:48+00:00",
+  "trained_at": "2026-10-18T15:18:14+00:00",
   "model": {
     "name": "xgboost",
     "exclude_features": [
@@ -24,6 +24,7 @@
   "seed": 42,
   "versions": {
     "python": "3.12.15",
+    "platform": "darwin-x86_64",
     "scikit-learn": "1.9.1",
     "xgboost": "3.4.1",
     "pandas": "3.0.6",
@@ -33,20 +34,21 @@
   "oof_metrics": {
     "n": 24000,
     "threshold": 0.16,
-    "pr_auc": 0.5587866225864454,
-    "roc_auc": 0.7832034920627595,
-    "precision": 0.3727772685609533,
-    "recall": 0.766057637973253,
-    "f1": 0.5015105740181269,
-    "flagged_share": 0.45458333333333334,
+    "pr_auc": 0.5588658170104457,
+    "roc_auc": 0.7825354768123304,
+    "precision": 0.37272311212814646,
+    "recall": 0.7669994349218309,
+    "f1": 0.5016631760502649,
+    "flagged_share": 0.4552083333333333,
     "confusion": {
-      "tp": 4067,
-      "fp": 6843,
-      "fn": 1242,
-      "tn": 11848
+      "tp": 4072,
+      "fp": 6853,
+      "fn": 1237,
+      "tn": 11838
     },
-    "cost_per_client": 0.543875,
+    "cost_per_client": 0.54325,
     "cost_per_client_flag_none": 1.1060416666666666,
     "cost_per_client_flag_all": 0.7787916666666667
-  }
+  },
+  "model_sha256": "8e01702cd2fdaba6ba63ed886a2e081c56a81799378d3c567d1f8785878e2639"
 }
