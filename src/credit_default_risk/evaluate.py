@@ -1,7 +1,9 @@
-"""Final, one-time evaluation of the saved model on the test split.
+"""Final evaluation of the saved model on the test split.
 
 Refuses to run again once reports/test_metrics.json exists (set FORCE=1 to override):
 re-running after changing the model would turn the test set into a validation set.
+The result records the SHA-256 of the evaluated model file, so `make verify` can
+confirm that the model being served is the one these metrics describe.
 """
 
 import json
@@ -12,6 +14,7 @@ from credit_default_risk.config import load_config, project_path
 from credit_default_risk.predict import load_bundle, predict
 from credit_default_risk.split import load_split
 from credit_default_risk.threshold import metrics_at
+from credit_default_risk.train import file_sha256
 
 MAX_PR_AUC_GAP = 0.03
 
@@ -22,7 +25,8 @@ def main() -> None:
     if out.exists() and os.environ.get("FORCE") != "1":
         sys.exit(f"{out} already exists: the test set has been used. Set FORCE=1 to override.")
 
-    bundle = load_bundle(project_path(cfg["paths"]["models_dir"]) / "model.joblib")
+    model_path = project_path(cfg["paths"]["models_dir"]) / "model.joblib"
+    bundle = load_bundle(model_path)
     test = load_split("test", cfg)
     y = test[cfg["data"]["target"]]
     proba = predict(bundle, test)["default_probability"]
@@ -34,6 +38,8 @@ def main() -> None:
     metrics["oof_pr_auc"] = oof["pr_auc"]
     metrics["pr_auc_gap_vs_oof"] = gap
     metrics["model_trained_at"] = bundle["metadata"]["trained_at"]
+    metrics["model_platform"] = bundle["metadata"]["versions"]["platform"]
+    metrics["model_sha256"] = file_sha256(model_path)
     out.write_text(json.dumps(metrics, indent=2) + "\n")
 
     for key in ["pr_auc", "roc_auc", "recall", "precision", "flagged_share", "cost_per_client"]:

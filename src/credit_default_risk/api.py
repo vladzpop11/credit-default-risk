@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from credit_default_risk.config import load_config, project_path
 from credit_default_risk.predict import load_bundle, predict
+from credit_default_risk.train import file_sha256
 
 Status = Field(ge=-2, le=9, description="Repayment status: -2..0 paid/revolving, 1-9 months late")
 Bill = Field(description="Bill statement amount (NT$); negative means overpaid")
@@ -76,7 +77,9 @@ def model_path() -> Path:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.bundle = load_bundle(model_path())
+    path = model_path()
+    app.state.bundle = load_bundle(path)
+    app.state.model_sha256 = file_sha256(path)
     yield
 
 
@@ -86,7 +89,11 @@ app = FastAPI(title="Credit default risk", version="0.1.0", lifespan=lifespan)
 @app.get("/health")
 def health() -> dict:
     bundle = app.state.bundle
-    return {"status": "ok", "model_trained_at": bundle["metadata"]["trained_at"]}
+    return {
+        "status": "ok",
+        "model_trained_at": bundle["metadata"]["trained_at"],
+        "model_sha256": app.state.model_sha256,
+    }
 
 
 @app.post("/predict")

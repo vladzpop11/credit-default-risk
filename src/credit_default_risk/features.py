@@ -44,8 +44,11 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
 def add_features(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df["utilization_1"] = df["BILL_AMT1"] / df["LIMIT_BAL"]
-    # Share of last month's bill that was paid; clipped because bills can be ~0 or negative.
-    df["payment_ratio_1"] = (df["PAY_AMT1"] / df["BILL_AMT1"].clip(lower=1)).clip(upper=1.5)
+    # Share of the previous statement that was paid. The payment in month m settles the
+    # bill of month m+1: PAY_AMT1 equals BILL_AMT2 exactly for 15.2% of clients with a
+    # positive bill, against 2.4% for BILL_AMT1 (training split). Clipped because bills
+    # can be ~0 or negative.
+    df["payment_ratio_1"] = (df["PAY_AMT1"] / df["BILL_AMT2"].clip(lower=1)).clip(upper=1.5)
     late = df[PAY_STATUS].clip(lower=0)
     df["months_late"] = (late > 0).sum(axis=1)
     df["max_months_late"] = late.max(axis=1)

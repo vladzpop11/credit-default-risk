@@ -31,6 +31,12 @@ def test_engineered_features(make_clients) -> None:
     assert out["payment_ratio_1"].le(1.5).all()
 
 
+def test_payment_ratio_uses_the_previous_statement(make_clients) -> None:
+    df = make_clients(n=1)
+    df.loc[0, ["PAY_AMT1", "BILL_AMT1", "BILL_AMT2"]] = [5_000, 40_000, 10_000]
+    assert prepare(df).loc[0, "payment_ratio_1"] == 0.5
+
+
 def test_preprocessor_can_exclude_sensitive_features(make_clients) -> None:
     X = prepare(make_clients())
     names = build_preprocessor(exclude=SENSITIVE).fit(X).get_feature_names_out()

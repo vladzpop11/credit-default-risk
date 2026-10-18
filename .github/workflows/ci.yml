@@ -8,9 +8,9 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
 
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.0
         with:
           version: "0.13.1"
 
@@ -18,7 +18,12 @@ jobs:
 
       - run: make check
 
-      # Rebuild the model from the public source, then build the serving image.
+      # Retrain from the public source and check the result is within tolerance of the
+      # evaluated model. Linux and macOS builds of xgboost differ slightly, so the CI
+      # model is a reproducibility check, not the released artifact.
       - run: make data split train
 
+      - run: make reproduce-check
+
+      # Build test only: the image is not published.
       - run: docker build -t credit-default-risk:ci .
