@@ -1,0 +1,17 @@
+seed: 42
+
+data:
+  url: https://archive.ics.uci.edu/static/public/350/default+of+credit+card+clients.zip
+  raw_dir: data/raw
+  processed_dir: data/processed
+  raw_file: default of credit card clients.xls
+  target: default
+  test_size: 0.2
+
+cv:
+  n_splits: 5
+
+paths:
+  models_dir: models
+  reports_dir: reports
+  figures_dir: reports/figures

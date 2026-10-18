@@ -1,0 +1,14 @@
+.venv
+.git
+.github
+.ruff_cache
+.pytest_cache
+__pycache__
+data
+models
+mlruns
+notebooks
+reports
+tests
+.env
+.DS_Store
