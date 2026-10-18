@@ -1,7 +1,7 @@
 IMAGE := credit-default-risk:dev
 PORT  := 8000
 
-.PHONY: setup format lint test check data split eda cv train analysis evaluate serve docker-build docker-run docker-stop
+.PHONY: setup format lint test check data split eda cv train analysis evaluate serve docker-build docker-run docker-stop demo
 
 setup:
 	uv sync
@@ -55,3 +55,7 @@ docker-stop:
 
 models/model.joblib:
 	@echo "No trained model: run make data split train first." && exit 1
+
+# Everything from scratch: download, split, train, build and start the API.
+demo: setup data split train docker-build docker-run
+	@echo "API running: http://localhost:$(PORT)/docs  (stop with: make docker-stop)"

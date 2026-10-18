@@ -1,6 +1,6 @@
 {
   "package_version": "0.1.0",
-  "trained_at": "2026-10-18T14:49:15+00:00",
+  "trained_at": "2026-10-18T14:56:48+00:00",
   "model": {
     "name": "xgboost",
     "exclude_features": [
