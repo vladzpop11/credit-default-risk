@@ -16,12 +16,15 @@ jobs:
 
       - run: uv sync --frozen
 
+      # Download and split first, so the tests that need the real split also run.
+      - run: make data split
+
       - run: make check
 
       # Retrain from the public source and check the result is within tolerance of the
       # evaluated model. Linux and macOS builds of xgboost differ slightly, so the CI
       # model is a reproducibility check, not the released artifact.
-      - run: make data split train
+      - run: make train
 
       - run: make reproduce-check
 

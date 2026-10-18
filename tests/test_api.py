@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -43,3 +45,14 @@ def test_predict_rejects_sensitive_attributes(client, payload) -> None:
 def test_predict_rejects_missing_field(client, payload) -> None:
     del payload["LIMIT_BAL"]
     assert client.post("/predict", json=payload).status_code == 422
+
+
+@pytest.mark.parametrize("field", ["LIMIT_BAL", "BILL_AMT1", "PAY_AMT1"])
+@pytest.mark.parametrize("literal", ["NaN", "Infinity", "-Infinity"])
+def test_predict_rejects_non_finite_numbers(client, payload, field, literal) -> None:
+    # NaN/Infinity are not valid JSON but are accepted by Python's JSON parser.
+    body = json.dumps(payload).replace(f'"{field}": {payload[field]}', f'"{field}": {literal}')
+    assert literal in body
+    r = client.post("/predict", content=body, headers={"Content-Type": "application/json"})
+    assert r.status_code == 422
+    assert r.json()["detail"]

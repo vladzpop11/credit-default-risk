@@ -2,13 +2,13 @@
 
 Predict whether a credit card client will miss next month's payment, choose the decision threshold from the cost of each kind of error, and serve the model as a containerised API.
 
-**Result:** on a held-out test set of 6,000 clients, the model cuts the expected cost of errors by **49%** compared with approving everyone. It catches **75% of defaulters** (PR-AUC 0.554 against a 0.221 no-skill baseline), without using sex, marital status or age.
+**Result:** on a held-out test set of 6,000 clients, the model cuts the expected cost of errors by **27%** compared with the cheapest simple policy (flagging everyone), and by 49% compared with approving everyone. It catches **75% of defaulters** (PR-AUC 0.554 against a 0.221 no-skill baseline), without using sex, marital status or age.
 
 ## Problem
 
 A card issuer reviews its clients every month. For each client the model estimates the probability of defaulting on the next payment, and clients above a threshold are flagged for action (manual review, a reminder or a lower limit).
 
-Missing a defaulter is assumed to cost **5 times** as much as flagging a client who would have paid. Success is measured as the expected cost per client against the policy of flagging no one. PR-AUC is the ranking metric, because only 22% of clients default and accuracy would be misleading.
+Missing a defaulter is assumed to cost **5 times** as much as flagging a client who would have paid. Success is measured as the expected cost per client against the two simple policies: approving everyone and flagging everyone. PR-AUC is the ranking metric, because only 22% of clients default and accuracy would be misleading.
 
 ## Data
 
@@ -20,7 +20,7 @@ Missing a defaulter is assumed to cost **5 times** as much as flagging a client 
 
 1. **Split first.** The data is split 80/20 into train and test, stratified at 22.12% defaults in both. The test set is not used for any modelling decision; see [Test-set use](#test-set-use) for the two times it was evaluated.
 2. **Exploration on train only** ([reports/eda.md](reports/eda.md)). Recent repayment status dominates: clients late last month default at 50.4%, against 13.7% for everyone else. The categorical codes contain undocumented values, the bill amounts are highly collinear and skewed, and each payment settles the *previous* month's bill.
-3. **No-leakage pipeline.** Cleaning and engineered features (`months_late`, `max_months_late`, utilisation, payment ratio) are computed row by row. Imputation, scaling and one-hot encoding are fitted inside a scikit-learn `Pipeline` on each training fold only. The same `prepare()` function runs in training and in the API. Tests check this on the real training path, with a shuffled-label canary and a per-fold refit comparison.
+3. **No-leakage pipeline.** Cleaning and engineered features (`months_late`, `max_months_late`, utilisation, payment ratio) are computed row by row. Imputation, scaling and one-hot encoding are fitted inside a scikit-learn `Pipeline` on each training fold only. The same `prepare()` function runs in training and in the API. Tests check that the model inputs cannot depend on the target, that every out-of-fold score comes from a pipeline refitted without that fold, and that a training path scoring rows its model has seen would be detected.
 4. **Model selection** with stratified 5-fold cross-validation ([reports/cv_results.md](reports/cv_results.md)): a prior baseline, logistic regression, random forest and XGBoost. XGBoost was chosen before the test set was opened.
 5. **Sensitive attributes removed.** Dropping sex, marital status and age cost 0.0002 PR-AUC in cross-validation, against a fold-to-fold standard deviation of 0.012. They are not model inputs, and the API does not accept them.
 6. **Cost-based threshold** ([reports/error_analysis.md](reports/error_analysis.md)). The threshold 0.16 minimises expected cost on out-of-fold predictions. It matches the decision-theory optimum 1/(1+5) ≈ 0.167, because the model is well calibrated overall (mean prediction 0.220 vs 0.221 observed).
@@ -46,9 +46,11 @@ Final model, threshold 0.16 ([reports/test_metrics.json](reports/test_metrics.js
 | Recall | 76.7% | 74.6% |
 | Precision | 37.3% | 36.5% |
 | Clients flagged | 45.5% | 45.2% |
-| Cost per client (no model: 1.106) | 0.543 | 0.568 |
+| Cost per client | 0.543 | 0.568 |
+| … if everyone is approved | 1.106 | 1.106 |
+| … if everyone is flagged | 0.779 | 0.779 |
 
-The test PR-AUC is within 0.005 of cross-validation, so there is no sign of overfitting to the validation folds.
+The test PR-AUC is within 0.005 of cross-validation, so there is no sign of overfitting to the validation folds. The test clients come from the same months as the training clients, so this says nothing about how the model holds up on later months (see Limitations).
 
 **Serving:** CPU inference in Docker on a 2-core 2018 MacBook Air takes 32 ms on average and 51 ms at p95 per request, end to end over HTTP (50 requests).
 
@@ -126,8 +128,10 @@ Other targets: `make check` (Ruff + pytest), `make eda`, `make cv`, `make analys
 ## Limitations
 
 - **Clean-history defaulters are a blind spot.** 91% of the missed defaulters were never late in the previous 6 months. The data has no income, other debts or bureau score, so these clients look like good ones.
-- **The 5:1 cost ratio is an assumption.** At this ratio 45% of clients are flagged, which only makes sense if the action is cheap (a reminder or a review, not a refusal). The cost curve is flat between about 0.12 and 0.25, so the threshold can be raised with little loss.
-- **Indirect group differences remain.** Without using age, good clients aged 21–25 are still flagged 50% of the time, against 34% for ages 26–40, mostly through lower credit limits. The model also slightly under-predicts risk for ages 41–60 (22.5% predicted vs 23.8% observed). This needs a review before any real use.
+- **The test set is from the same period.** The split is random within one observation window (April–September 2005, target October 2005). The test score measures performance on unseen clients from that period, not on future months; an out-of-time evaluation would need later data.
+- **The 5:1 cost ratio is an assumption.** At this ratio 45% of clients are flagged, and flagging everyone is already 30% cheaper than approving everyone, which only makes sense if the action is cheap (a reminder or a review, not a refusal). The cost curve is flat between about 0.12 and 0.25, so the threshold can be raised with little loss.
+- **Indirect group differences remain.** Without using age, good clients aged 21–25 are still flagged 50% of the time, against 34% for ages 26–40, mostly through lower credit limits. There is weak evidence that the model slightly under-predicts risk for men and for ages 41–60 (about 1 pp, just outside the 95% interval). This needs a review before any real use.
+- **`payment_ratio_1` gives the same value to "no previous bill" and "had a bill, paid nothing".** The trees can separate them through `BILL_AMT2`. An explicit flag was tested in cross-validation only (+0.0011 ± 0.0016 PR-AUC, within noise), so the evaluated model was kept rather than using the test set a third time.
 - **The evaluated model file is not distributed with the repo.** A clone can reproduce the results within tolerance, but not the exact file.
 - **The data is old and from one market** (Taiwan, 2005, a period of rising card debt). The model would need revalidation on current data, and monitoring for drift.
 

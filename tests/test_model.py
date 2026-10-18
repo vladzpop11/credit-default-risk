@@ -3,28 +3,8 @@ import pandas as pd
 import pytest
 
 from credit_default_risk.config import load_config, project_path
-from credit_default_risk.features import AMOUNTS, SENSITIVE, build_preprocessor, prepare
 from credit_default_risk.predict import load_bundle, predict
 from credit_default_risk.threshold import choose_threshold, metrics_at
-
-
-def test_preprocessing_is_fitted_on_train_only(make_clients) -> None:
-    """Scaling statistics must come from the rows the pipeline was fitted on.
-
-    The "test" rows have amounts 1000x larger. If they leaked into fitting, the
-    training rows would not be centred and the test rows would not be far off-centre.
-    """
-    train = prepare(make_clients(n=200, seed=1))
-    test_raw = make_clients(n=200, seed=2)
-    test_raw[AMOUNTS] = test_raw[AMOUNTS] * 1000
-    test = prepare(test_raw)
-
-    pre = build_preprocessor(exclude=SENSITIVE).fit(train)
-    names = list(pre.get_feature_names_out())
-    cols = [names.index(c) for c in AMOUNTS]
-
-    assert np.allclose(pre.transform(train)[:, cols].mean(axis=0), 0, atol=1e-8)
-    assert (pre.transform(test)[:, cols].mean(axis=0) > 1).all()
 
 
 def test_train_and_test_ids_are_disjoint() -> None:

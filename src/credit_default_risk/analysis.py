@@ -28,7 +28,8 @@ def plot_cost_curve(y, proba, cfg, threshold: float, path) -> None:
     fig, ax = plt.subplots(figsize=(7, 4))
     ax.plot(grid, costs, color="#4C72B0")
     ax.axvline(threshold, color="#C44E52", linestyle="--", label=f"chosen {threshold:.2f}")
-    ax.axhline(cost_fn * np.mean(y), color="grey", linestyle=":", label="no model (approve all)")
+    ax.axhline(cost_fn * np.mean(y), color="grey", linestyle=":", label="approve everyone")
+    ax.axhline(cost_fp * (1 - np.mean(y)), color="grey", linestyle="--", label="flag everyone")
     ax.set(
         title=f"Expected cost per client (FN cost {cost_fn}, FP cost {cost_fp})",
         xlabel="decision threshold",

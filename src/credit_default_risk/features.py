@@ -47,7 +47,10 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     # Share of the previous statement that was paid. The payment in month m settles the
     # bill of month m+1: PAY_AMT1 equals BILL_AMT2 exactly for 15.2% of clients with a
     # positive bill, against 2.4% for BILL_AMT1 (training split). Clipped because bills
-    # can be ~0 or negative.
+    # can be ~0 or negative. When there was no previous bill (BILL_AMT2 <= 0, 10.4% of
+    # clients) this is just PAY_AMT1 clipped, usually 0, the same value as "had a bill and
+    # paid nothing"; the trees can tell the two apart through BILL_AMT2. An explicit
+    # no-previous-bill flag changed CV PR-AUC by +0.0011 ± 0.0016, so it was not adopted.
     df["payment_ratio_1"] = (df["PAY_AMT1"] / df["BILL_AMT2"].clip(lower=1)).clip(upper=1.5)
     late = df[PAY_STATUS].clip(lower=0)
     df["months_late"] = (late > 0).sum(axis=1)

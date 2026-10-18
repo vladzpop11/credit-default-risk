@@ -22,10 +22,12 @@ def small_cfg() -> dict:
 
 
 def test_out_of_fold_has_no_skill_on_shuffled_labels(make_clients, small_cfg) -> None:
-    """Target-leakage canary: with labels shuffled, nothing can be learned honestly.
+    """With labels shuffled, nothing can be learned honestly.
 
-    If labels leaked into features, preprocessing or fold assignment, the out-of-fold
-    ROC-AUC would rise well above 0.5 (no skill).
+    Catches a training path that scores rows with a model that saw them (e.g. fitting on
+    all rows instead of per fold): that gives ROC-AUC ~0.85 here. It cannot catch target
+    information inside the features, because shuffled labels are unrelated to them;
+    test_model_inputs_do_not_depend_on_the_target covers that.
     """
     clients = make_clients(n=2000, seed=5)
     X = prepare(clients)
@@ -34,6 +36,15 @@ def test_out_of_fold_has_no_skill_on_shuffled_labels(make_clients, small_cfg) ->
     )
     oof = train.out_of_fold(X, y, small_cfg)
     assert roc_auc_score(y, oof) < 0.56
+
+
+def test_model_inputs_do_not_depend_on_the_target(make_clients) -> None:
+    """Feature preparation must give identical inputs whatever the labels are."""
+    clients = make_clients(n=200, seed=7)
+    flipped = clients.assign(default=1 - clients["default"])
+    out = prepare(clients)
+    assert "default" not in out.columns
+    pd.testing.assert_frame_equal(out, prepare(flipped))
 
 
 def test_out_of_fold_learns_real_signal(make_clients, small_cfg) -> None:

@@ -14,9 +14,10 @@ Every number here comes from out-of-fold predictions on the 24,000 training clie
 | Precision (flagged clients who default) | 37.3% |
 | Clients flagged | 45.5% |
 | Cost per client | 0.543 |
-| Cost per client with no model (approve everyone) | 1.106 |
+| Cost per client if everyone is approved | 1.106 |
+| Cost per client if everyone is flagged | 0.779 |
 
-The model **cuts the expected cost of errors by 51%** compared with approving everyone. The price is that almost half of clients are flagged. The cost curve is flat between about 0.12 and 0.25, so a lender who can only review fewer clients loses little by raising the threshold a bit.
+Under the 5:1 cost assumption, flagging everyone is the cheaper of the two trivial policies, so it is the fair baseline. The model **cuts the expected cost of errors by 30%** compared with flagging everyone, and by 51% compared with approving everyone. It beats the flag-everyone policy only at thresholds below about 0.57 (see the cost curve). The price is that almost half of clients are flagged. The cost curve is flat between about 0.12 and 0.25, so a lender who can only review fewer clients loses little by raising the threshold a bit.
 
 ## What drives the predictions
 
@@ -55,6 +56,6 @@ Sex and age are not model inputs, but correlated features can still produce grou
 | Age 41–60 | 6,346 | 23.8% | 22.5% | 46.4% | 36.6% |
 | Age 61+ | 214 | 27.6% | 25.1% | 49.5% | 36.8% |
 
-- **Calibration differs a little by group.** The model slightly over-predicts for women (+0.5 pp) and under-predicts for men (−1.0 pp) and for ages 41–60 (−1.3 pp). With 6,346 clients aged 41–60 the sampling error is about ±0.5 pp, so that gap is probably real, though small. For ages 61+ the gap is −2.5 pp, but with only 214 clients its sampling error is about ±3.1 pp, so that gap cannot be distinguished from noise.
+- **Calibration differs a little by group.** The model slightly over-predicts for women (+0.5 pp, inside the ±0.7 pp 95% interval of the observed rate) and under-predicts for men (−1.0 pp, interval ±0.9 pp) and for ages 41–60 (−1.3 pp, interval ±1.0 pp). The two under-predictions are only just outside their intervals: weak evidence of a small bias. For ages 61+ the gap is −2.5 pp, but with only 214 clients the 95% interval is about ±6 pp, so that gap cannot be distinguished from noise. (Intervals are ±1.96 standard errors of a proportion.)
 - **Flag rates mostly follow the real differences in default rates.**
 - **Young clients bear more false alarms.** Good clients aged 21–25 are flagged half the time (49.6% false positive rate, against 34.1% for ages 26–40), mostly through their lower credit limits and shorter repayment records. This would need a documented review before any real use.

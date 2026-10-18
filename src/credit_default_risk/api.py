@@ -10,7 +10,9 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from credit_default_risk.config import load_config, project_path
@@ -27,6 +29,9 @@ class Client(BaseModel):
 
     model_config = ConfigDict(
         extra="forbid",
+        # JSON parsers accept NaN/Infinity literals; reject them instead of letting the
+        # imputer silently fill them or the error response fail to serialise.
+        allow_inf_nan=False,
         json_schema_extra={
             "example": {
                 "LIMIT_BAL": 50000, "EDUCATION": 2,
@@ -84,6 +89,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Credit default risk", version="0.1.0", lifespan=lifespan)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+    # The default handler echoes the rejected input, which fails to serialise for
+    # NaN/Infinity (a 500 instead of a 422) and repeats client data back.
+    detail = [{k: e[k] for k in ("type", "loc", "msg") if k in e} for e in exc.errors()]
+    return JSONResponse(status_code=422, content={"detail": detail})
 
 
 @app.get("/health")

@@ -169,7 +169,7 @@ dependencies = [
     { name = "pyyaml" },
     { name = "scikit-learn" },
     { name = "uvicorn" },
-    { name = "xgboost", marker = "sys_platform == 'darwin'" },
+    { name = "xgboost", marker = "sys_platform != 'linux'" },
     { name = "xgboost-cpu", marker = "sys_platform == 'linux'" },
     { name = "xlrd" },
 ]
@@ -192,7 +192,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "scikit-learn", specifier = ">=1.9.1" },
     { name = "uvicorn", specifier = ">=0.54.0" },
-    { name = "xgboost", marker = "sys_platform == 'darwin'", specifier = ">=3.4.1" },
+    { name = "xgboost", marker = "sys_platform != 'linux'", specifier = ">=3.4.1" },
     { name = "xgboost-cpu", marker = "sys_platform == 'linux'", specifier = ">=3.4.1" },
     { name = "xlrd", specifier = ">=2.0.2" },
 ]
@@ -1332,6 +1332,8 @@ sdist = { url = "https://files.pythonhosted.org/packages/38/a9/295320f741c5be4be
 wheels = [
     { url = "https://files.pythonhosted.org/packages/57/ea/0bdcd374241a86f1986e87e272516f0a70d841c3aa86aa9ca167fb651573/xgboost-3.4.1-py3-none-macosx_10_15_x86_64.whl", hash = "sha256:1ea15f15f661825b6a67d87674fb9604a1abb38dd0d4c5cf0486fc85f5203e83", size = 2541584, upload-time = "2026-08-15T08:38:48.484Z" },
     { url = "https://files.pythonhosted.org/packages/f7/94/e5c37a8972ad780edc1d8459d1931356344ca133f7f99ba9cfda516b5bba/xgboost-3.4.1-py3-none-macosx_12_0_arm64.whl", hash = "sha256:a7afd7dbace0951c93aa85ffe046e54bc40893f5b51cd3e7991eb157bf9c7c7c", size = 2365501, upload-time = "2026-08-15T08:38:52.366Z" },
+    { url = "https://files.pythonhosted.org/packages/2f/3c/925394671f6a1668e2a71886de66e80be694eaf37f615cec74eefaf43107/xgboost-3.4.1-py3-none-win_amd64.whl", hash = "sha256:2d30fa513673101f542fdcbd18f30c8f96c064046f798635ac08663e9969f81b", size = 48942686, upload-time = "2026-08-15T08:39:16.182Z" },
+    { url = "https://files.pythonhosted.org/packages/90/2f/f2fbe984ca095709fd246546125e78834740f347e3aa7561a22a1e928510/xgboost-3.4.1-py3-none-win_arm64.whl", hash = "sha256:e9312b30e5679d27c1d8b9ee97e092b964d960a672d5d406d9fb3cd0845c9797", size = 2094178, upload-time = "2026-08-15T08:39:19.308Z" },
 ]
 
 [[package]]
