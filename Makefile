@@ -1,7 +1,7 @@
 IMAGE := credit-default-risk:dev
 PORT  := 8000
 
-.PHONY: setup format lint test check data split eda cv train serve docker-build docker-run
+.PHONY: setup format lint test check data split eda cv train analysis evaluate serve docker-build docker-run docker-stop
 
 setup:
 	uv sync
@@ -32,7 +32,14 @@ cv:
 	uv run python -m credit_default_risk.cv
 
 train:
-	@echo "train: not implemented yet (Project 1, step 6)"
+	uv run python -m credit_default_risk.train
+
+analysis:
+	uv run python -m credit_default_risk.analysis
+
+# Runs once: refuses to overwrite reports/test_metrics.json unless FORCE=1.
+evaluate:
+	uv run python -m credit_default_risk.evaluate
 
 serve:
 	@echo "serve: not implemented yet (Project 1, step 8)"

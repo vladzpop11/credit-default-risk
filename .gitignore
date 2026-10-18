@@ -21,4 +21,5 @@ mlruns/
 
 reports/*
 !reports/*.md
+!reports/*.json
 !reports/figures/

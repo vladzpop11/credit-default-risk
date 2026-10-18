@@ -30,3 +30,12 @@ def candidates(seed: int) -> dict:
 
 def make_pipeline(model, exclude: list[str] | None = None) -> Pipeline:
     return Pipeline([("preprocess", build_preprocessor(exclude)), ("model", model)])
+
+
+def chosen_pipeline(cfg: dict) -> Pipeline:
+    """The model selected at the step 4 checkpoint, as configured in configs/config.yaml."""
+    spec = cfg["model"]
+    if spec["name"] != "xgboost":
+        raise ValueError(f"unsupported model: {spec['name']}")
+    model = XGBClassifier(**spec["params"], n_jobs=-1, random_state=cfg["seed"])
+    return make_pipeline(model, exclude=spec["exclude_features"])

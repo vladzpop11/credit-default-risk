@@ -53,8 +53,12 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def prepare(df: pd.DataFrame) -> pd.DataFrame:
-    """Raw client rows -> model input rows. Used identically in training and serving."""
-    return add_features(clean(df[RAW_FEATURES]))
+    """Raw client rows -> model input rows. Used identically in training and serving.
+
+    Columns the model does not use (the excluded sensitive attributes) may be absent;
+    they are filled with NaN and dropped by the preprocessor.
+    """
+    return add_features(clean(df.reindex(columns=RAW_FEATURES)))
 
 
 def signed_log1p(x: np.ndarray) -> np.ndarray:
