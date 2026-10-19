@@ -47,6 +47,10 @@ jobs:
 
       - run: make reproduce-check
 
+      # Behavioural tests (invariance, direction, latency) need a trained model, so
+      # `make check` above skips them; run them on the model just trained.
+      - run: make test-model
+
       # Build the image and check it serves; the image is not published.
       - run: make docker-build
 

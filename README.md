@@ -15,6 +15,7 @@ Predict whether a credit card client will miss next month's payment, choose the 
 
 - **A simple rule gets most of the way.** "Flag anyone who was late in the last 6 months" has no fitted parameters and already cuts the cost by 26% on the training data. The model's real added value is a further **5%** cost reduction, and 11 percentage points more defaulters caught. On this data, recent repayment behaviour carries most of the signal.
 - **Sex, marital status and age are not used.** Dropping them cost nothing measurable in cross-validation.
+- **[Model card](MODEL_CARD.md):** intended use, performance, fairness audit and behavioural tests on one page.
 
 ![Expected error cost per client by decision threshold](reports/figures/cost_curve.png)
 
@@ -128,7 +129,7 @@ The test set has been evaluated twice, and both results are kept.
 - **`make verify`** checks that `models/model.joblib` is the evaluated file. **`make reproduce-check`** checks that a local retrain is within 0.005 PR-AUC and 0.02 threshold of it; when the local model *is* the evaluated file, it passes and says so. Both exit with status 1 when the check fails, and `make evaluate` refuses to run twice; seeing `make: *** Error 1` in those cases is intended.
 - **Where training output goes:** retraining writes only to `models/` (the model and `train_summary.json`). The tracked record of the evaluated model in `reports/` is never overwritten.
 - **Model files are pickles.** Loading one runs code inside it, so only load files you trust. Set `MODEL_SHA256` to make the API refuse any other file before unpickling it.
-- **CI** checks dependencies for known vulnerabilities and runs the tests. It then retrains from the public source, runs `make reproduce-check`, builds the image and smoke-tests it. The image is not published.
+- **CI** checks dependencies for known vulnerabilities and runs the tests. It then retrains from the public source, runs `make reproduce-check` and the behavioural tests (`make test-model`), builds the image and smoke-tests it. The image is not published.
 
 </details>
 
@@ -174,7 +175,7 @@ flowchart LR
   - Predicted risk peaks at three months late and *drops* for longer delays. Only one training client was four or more months late in all six months.
   - "Other" education (386 training clients, 7.3% default rate) sharply lowers predicted risk.
   - Credit limits below NT$10k, the training minimum, are treated like NT$10k.
-  - Monotonic constraints would be a sensible next step.
+  - Monotonic constraints would be a sensible next step. A behavioural test records the long-delay drop as an expected failure until then; see the [model card](MODEL_CARD.md#behavioural-tests).
 - **The probabilities are mildly overconfident.** The lowest deciles are under-predicted and the highest over-predicted, each by up to 1.6 percentage points (Brier score 0.134). Calibration near the threshold is good.
 - **The API is not production hardening on its own.** TLS, rate limits and timeouts for slow clients belong in a reverse proxy in front of it.
 - **The data is old and from one market** (Taiwan, 2005, a period of rising card debt). The model would need revalidation on current data and monitoring for drift.

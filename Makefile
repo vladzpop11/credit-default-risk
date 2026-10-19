@@ -3,7 +3,7 @@ NAME  ?= credit-default-risk
 PORT  ?= 8000
 
 .PHONY: help setup format lint test check data split eda cv train analysis evaluate \
-        uncertainty verify reproduce-check serve docker-build docker-run docker-stop \
+        uncertainty verify reproduce-check test-model serve docker-build docker-run docker-stop \
         docker-smoke latency demo
 
 help:  ## List the targets
@@ -54,6 +54,9 @@ verify:  ## Is models/model.joblib the evaluated file? (exit 1 if not)
 
 reproduce-check:  ## Is the local retrain within tolerance of the evaluated model? (exit 1 if not)
 	uv run python -m credit_default_risk.verify reproduce
+
+test-model:  ## Behavioural tests of models/model.joblib (fail, not skip, if it is missing)
+	REQUIRE_MODEL=1 uv run pytest tests/test_model_behaviour.py
 
 serve:  ## Run the API locally without Docker
 	uv run uvicorn credit_default_risk.api:app --host 127.0.0.1 --port $(PORT)
