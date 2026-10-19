@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Credit card default risk model: scikit-learn pipeline, cost-based threshold, FastAPI service in Docker"
 readme = "README.md"
 authors = [
-    { name = "Vladzpop", email = "118611911+Vladzpop@users.noreply.github.com" }
+    { name = "Vladzpop", email = "291580488+vladzpop11@users.noreply.github.com" }
 ]
 requires-python = ">=3.12"
 dependencies = [
