@@ -1,5 +1,7 @@
 # Credit Card Default Risk
 
+[![CI](https://github.com/vladzpop11/credit-default-risk/actions/workflows/ci.yml/badge.svg)](https://github.com/vladzpop11/credit-default-risk/actions/workflows/ci.yml)
+
 Predict whether a credit card client will miss next month's payment, choose the decision threshold from the cost of each kind of error, and serve the model as a containerised API.
 
 **Result:** on a held-out test set of 6,000 clients, the model cuts the expected cost of errors by **27%** compared with the cheapest simple policy (flagging everyone), and by 49% compared with approving everyone. It catches **75% of defaulters** (PR-AUC 0.554 against a 0.221 no-skill baseline), without using sex, marital status or age.
