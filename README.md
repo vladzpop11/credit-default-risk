@@ -27,7 +27,7 @@ Requires Python 3.12 via [uv](https://docs.astral.sh/uv/), `make` and Docker. Th
 make demo        # download (SHA-256 checked), split, train if no model exists, build and start the API
 ```
 
-- **Changing the port or container name:** `make demo PORT=8080 NAME=my-api`.
+- **Changing the port or container name:** `make demo PORT=8080 NAME=my-api`, then stop it with `make docker-stop NAME=my-api`.
 - **Once it's running:** open http://localhost:8000/docs, or run:
 
 ```bash
@@ -38,6 +38,7 @@ make docker-stop
 
 - **Input names:** they are the UCI column names, except that the UCI `PAY_0` is called `PAY_1` here, to line up with `BILL_AMT1` and `PAY_AMT1` (all September 2005).
 - **Validation:** the API rejects unknown fields (including sex, marital status and age), wrong JSON types, out-of-range values, duplicate keys, non-JSON content and bodies over 16 KB.
+- **Errors:** the API's own errors (404, 405, 413, 415, 422, 500) all have the shape `{"detail": [{"type", "loc", "msg"}]}`, and never echo the submitted values. Two kinds come from the uvicorn server itself, in plain text: malformed HTTP, and a `503` when more than 64 requests are in flight at once (load shedding).
 
 `make help` lists all targets: `check` (Ruff and pytest), `eda`, `cv`, `analysis`, `uncertainty`, `serve` (the API without Docker), `docker-smoke` and more.
 
@@ -67,7 +68,7 @@ make docker-stop
    - **XGBoost was chosen before the test set was opened.** With 5 folds it cannot be distinguished from random forest (+0.004 PR-AUC, p = 0.23), or from a logistic regression that one-hot encodes the repayment codes, compared like for like without the sensitive attributes (+0.011, p = 0.25).
    - The one-hot logistic regression was added after a review. The original logistic regression, which treated the codes as numbers, loses clearly (+0.045, p = 0.003).
    - p-values come from paired t-tests with the Nadeau–Bengio correction for overlapping cross-validation training sets.
-   - **The tie was broken by speed:** XGBoost cross-validates about 5× faster than the random forest on this machine.
+   - **The tie was broken by speed:** one cross-validation run takes about 5–9 s for XGBoost against 34–43 s for the random forest on this machine (the times vary with load; see `cv_results.md`).
    - **All models use fixed, untuned settings.**
 5. **Sensitive attributes removed.** Dropping sex, marital status and age changed cross-validated PR-AUC by −0.0002, paired fold standard deviation 0.0039, corrected p = 0.94. They are not model inputs, and the API does not accept them.
 6. **Cost-based threshold** ([reports/error_analysis.md](reports/error_analysis.md)). 0.16 minimises the expected cost on out-of-fold predictions. That is consistent with the Bayes-optimal 1/(1+5) ≈ 0.167, as expected given good calibration near that value. The per-fold optima range from 0.16 to 0.20.
@@ -103,7 +104,7 @@ Final model, threshold 0.16 ([reports/test_metrics.json](reports/test_metrics.js
 - **The test PR-AUC agrees with the out-of-fold PR-AUC.** The gap is −0.004, with a 95% CI of −0.032 to +0.026. That interval treats the out-of-fold value as fixed, so it slightly understates the uncertainty.
 - **No hyperparameters were tuned,** so this is a check on the estimate, not on overfitting to the folds.
 - **The test clients come from the same months as the training clients,** so the result says nothing about later months.
-- **Serving:** CPU inference in Docker on a 2-core 2018 MacBook Air takes 34 ms on average and 41 ms at p95 per request, end to end over HTTP (50 requests after a warm-up). Measured with `make latency`; recorded in [reports/latency.json](reports/latency.json).
+- **Serving:** CPU inference in Docker on a 2-core 2018 MacBook Air takes 34 ms on average and 41 ms at p95 per request, end to end over HTTP (50 requests after a warm-up). Measured with `make latency`; recorded in [reports/latency.json](reports/latency.json), which is only updated when the evaluated model is being served (other measurements go to `models/latency.json`).
 
 ### Test-set use
 
@@ -126,7 +127,7 @@ The test set has been evaluated twice, and both results are kept.
   | Linux x86_64 (as in CI; printed by its `make reproduce-check` step) | 0.5573 | 0.16 |
 
 - **The released artifact is the evaluated model file, not a retrain.** Its SHA-256 is recorded in `reports/test_metrics.json`, and `GET /health` reports `"evaluated_model": true` only for that file. The file is not in git, so on a fresh clone `make demo` trains a new model, and `/health` says `false`.
-- **`make verify`** checks that `models/model.joblib` is the evaluated file. **`make reproduce-check`** checks that a local retrain is within 0.005 PR-AUC and 0.02 threshold of it; when the local model *is* the evaluated file, it passes and says so. Both exit with status 1 when the check fails, and `make evaluate` refuses to run twice; seeing `make: *** Error 1` in those cases is intended.
+- **`make verify`** checks that `models/model.joblib` is the evaluated file. **`make reproduce-check`** checks that a local retrain is within 0.005 PR-AUC and 0.02 threshold of it; when the local model *is* the evaluated file, it passes and says so. Both fail when the check fails, and `make evaluate` refuses to run twice. The Python modules exit with status 1; through `make` you see `make: *** Error 1` and the shell gets status 2. Both are intended.
 - **Where training output goes:** retraining writes only to `models/` (the model and `train_summary.json`). The tracked record of the evaluated model in `reports/` is never overwritten.
 - **Model files are pickles.** Loading one runs code inside it, so only load files you trust. Set `MODEL_SHA256` to make the API refuse any other file before unpickling it.
 - **CI** checks dependencies for known vulnerabilities and runs the tests. It then retrains from the public source, runs `make reproduce-check` and the behavioural tests (`make test-model`), builds the image and smoke-tests it. The image is not published.

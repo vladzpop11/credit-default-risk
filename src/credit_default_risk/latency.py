@@ -2,7 +2,9 @@
 
 python -m credit_default_risk.latency [URL]   default http://localhost:8000
 
-Sends the example client sequentially after a warm-up and writes reports/latency.json.
+Sends the example client sequentially after a warm-up. The tracked record,
+reports/latency.json, is only updated when the API serves the evaluated model; any other
+model's measurement goes to models/latency.json (git-ignored).
 """
 
 import json
@@ -30,6 +32,12 @@ def timed_request(url: str, body: bytes) -> float:
     return (time.perf_counter() - start) * 1000
 
 
+def output_path(cfg: dict, evaluated_model: bool) -> Path:
+    if evaluated_model:
+        return artifacts.test_metrics_path(cfg).with_name("latency.json")
+    return artifacts.model_path(cfg).with_name("latency.json")
+
+
 def main() -> None:
     base = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8000"
     body = Path(EXAMPLE).read_bytes()
@@ -50,7 +58,7 @@ def main() -> None:
         "model_sha256": health["model_sha256"],
         "evaluated_model": health["evaluated_model"],
     }
-    out = artifacts.test_metrics_path(load_config()).with_name("latency.json")
+    out = output_path(load_config(), health["evaluated_model"])
     artifacts.write_json(out, result)
     print(
         f"mean {result['mean_ms']:.1f} ms, p50 {result['p50_ms']:.1f} ms, "

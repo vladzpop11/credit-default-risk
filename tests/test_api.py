@@ -235,3 +235,34 @@ def test_startup_refuses_a_model_that_does_not_fit_the_schema(
     monkeypatch.setenv("MODEL_PATH", str(path))
     with pytest.raises(ValueError, match="API schema"), TestClient(app):
         pass
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "status"),
+    [("get", "/nope", 404), ("post", "/health", 405), ("delete", "/predict", 405)],
+)
+def test_http_errors_use_the_same_shape(client, method, path, status) -> None:
+    # POST /health has no Content-Type here: routing, not the body guard, must answer.
+    r = getattr(client, method)(path)
+    assert_error_shape(r, status)
+    assert r.json()["detail"][0]["loc"] == ["path"]
+
+
+def test_long_key_names_are_shortened_in_errors(client, payload) -> None:
+    key = "k" * 5000
+    r = client.post("/predict", json={**payload, key: 1})
+    assert_error_shape(r, 422)
+    assert key not in r.text and len(r.text) < 1000
+
+
+def test_long_duplicate_key_names_are_shortened(client, payload) -> None:
+    key = "d" * 5000
+    body = json.dumps(payload)[:-1] + f', "{key}": 1, "{key}": 2}}'
+    r = post_raw(client, body)
+    assert_error_shape(r, 422)
+    assert key not in r.text
+
+
+def test_openapi_documents_the_error_responses(client) -> None:
+    responses = client.get("/openapi.json").json()["paths"]["/predict"]["post"]["responses"]
+    assert {"200", "413", "415", "422", "500"} <= set(responses)

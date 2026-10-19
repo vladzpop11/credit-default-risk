@@ -24,6 +24,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, ConfigDict, Field
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from credit_default_risk import __version__, artifacts
 from credit_default_risk.config import load_config
@@ -96,10 +97,17 @@ class Prediction(BaseModel):
     model_trained_at: str
 
 
-def error(status: int, type_: str, msg: str) -> JSONResponse:
+def _short(value: Any, limit: int = 64) -> Any:
+    """Client-supplied names are echoed only in shortened form."""
+    if isinstance(value, str) and len(value) > limit:
+        return value[:limit] + "…"
+    return value
+
+
+def error(status: int, type_: str, msg: str, loc: str = "body") -> JSONResponse:
     """Errors always use FastAPI's list shape: {"detail": [{"type", "loc", "msg"}]}."""
     return JSONResponse(
-        status_code=status, content={"detail": [{"type": type_, "loc": ["body"], "msg": msg}]}
+        status_code=status, content={"detail": [{"type": type_, "loc": [loc], "msg": msg}]}
     )
 
 
@@ -111,7 +119,8 @@ def _reject_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     keys = [k for k, _ in pairs]
     duplicates = sorted({k for k in keys if keys.count(k) > 1})
     if duplicates:
-        raise DuplicateKeyError(f"duplicate keys: {duplicates}")
+        shown = [_short(k) for k in duplicates[:MAX_ERRORS]]
+        raise DuplicateKeyError(f"duplicate keys: {shown}")
     return dict(pairs)
 
 
@@ -122,7 +131,9 @@ class RequestGuard:
         self.app = app
 
     async def __call__(self, scope: dict, receive: Callable, send: Callable) -> None:
-        if scope["type"] != "http" or scope["method"] != "POST":
+        # Only the prediction endpoint takes a body; everything else goes straight to
+        # routing, so e.g. POST /health gets 405 rather than a content-type error.
+        if scope["type"] != "http" or scope["method"] != "POST" or scope["path"] != "/predict":
             return await self.app(scope, receive, send)
         headers = dict(scope["headers"])
         content_type = headers.get(b"content-type", b"").split(b";")[0].strip().lower()
@@ -205,8 +216,19 @@ app.add_middleware(RequestGuard)
 async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
     # The default handler echoes the rejected input, which fails to serialise for
     # NaN/Infinity (a 500 instead of a 422), repeats client data back and can be huge.
-    detail = [{k: e[k] for k in ("type", "loc", "msg") if k in e} for e in exc.errors()]
-    return JSONResponse(status_code=422, content={"detail": detail[:MAX_ERRORS]})
+    detail = [
+        {"type": e["type"], "loc": [_short(part) for part in e["loc"]], "msg": e["msg"]}
+        for e in exc.errors()[:MAX_ERRORS]
+    ]
+    return JSONResponse(status_code=422, content={"detail": detail})
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+    """404, 405 and other HTTP errors in the same list shape as everything else."""
+    response = error(exc.status_code, "http_error", str(exc.detail), loc="path")
+    response.headers.update(exc.headers or {})
+    return response
 
 
 @app.get("/", include_in_schema=False)
@@ -214,7 +236,8 @@ def root() -> RedirectResponse:
     return RedirectResponse("/docs")
 
 
-@app.api_route("/health", methods=["GET", "HEAD"])
+@app.get("/health")
+@app.head("/health", include_in_schema=False)  # for load balancers that probe with HEAD
 def health() -> dict:
     return {
         "status": "ok",
@@ -224,7 +247,24 @@ def health() -> dict:
     }
 
 
-@app.post("/predict")
+ERROR_SCHEMA = {
+    "content": {
+        "application/json": {
+            "example": {"detail": [{"type": "string", "loc": ["body"], "msg": "string"}]}
+        }
+    }
+}
+
+
+@app.post(
+    "/predict",
+    responses={
+        413: {"description": f"Body larger than {MAX_BODY_BYTES} bytes", **ERROR_SCHEMA},
+        415: {"description": "Content-Type is not application/json", **ERROR_SCHEMA},
+        422: {"description": "Invalid JSON, types, ranges, unknown or duplicate keys"},
+        500: {"description": "The input could not be scored", **ERROR_SCHEMA},
+    },
+)
 def predict_one(client: Client) -> Prediction:
     bundle = app.state.bundle
     try:

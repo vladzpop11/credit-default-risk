@@ -127,3 +127,11 @@ def test_uncertainty_requires_an_exact_reproduction() -> None:
     assert reproduces(dict(recorded), recorded)
     assert not reproduces({**recorded, "pr_auc": 0.5541}, recorded)
     assert not reproduces({**recorded, "confusion": {"tp": 2, "fp": 1, "fn": 3, "tn": 4}}, recorded)
+
+
+def test_latency_record_is_only_updated_for_the_evaluated_model() -> None:
+    from credit_default_risk.latency import output_path
+
+    cfg = load_config()
+    assert output_path(cfg, evaluated_model=True).parent.name == "reports"
+    assert output_path(cfg, evaluated_model=False).parent.name == "models"

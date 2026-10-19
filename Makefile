@@ -80,7 +80,7 @@ docker-smoke: docker-run  ## Start the container, check /health and /predict, st
 	@echo
 	docker stop $(NAME)
 
-latency:  ## Measure /predict latency against the running API (writes reports/latency.json)
+latency:  ## Measure /predict latency against the running API (reports/ only for the evaluated model)
 	uv run python -m credit_default_risk.latency http://localhost:$(PORT)
 
 # Trains only when no model exists, so make demo never replaces the evaluated model.
@@ -88,4 +88,4 @@ models/model.joblib:
 	uv run python -m credit_default_risk.train
 
 demo: setup data split models/model.joblib docker-build docker-run  ## Everything from scratch, then the API
-	@echo "API running: http://localhost:$(PORT)/docs  (stop with: make docker-stop)"
+	@echo "API running: http://localhost:$(PORT)/docs  (stop with: make docker-stop NAME=$(NAME))"
