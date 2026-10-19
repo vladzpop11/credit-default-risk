@@ -1,15 +1,12 @@
-.venv
-.git
-.github
-.ruff_cache
-.pytest_cache
-__pycache__
-data
-models/*
+# Allowlist: only what the image needs is sent to the build.
+*
+!pyproject.toml
+!uv.lock
+!README.md
+!src/
+!configs/
 !models/model.joblib
-mlruns
-notebooks
-reports
-tests
-.env
-.DS_Store
+!reports/test_metrics.json
+**/__pycache__
+**/*.pyc
+**/.DS_Store

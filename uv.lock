@@ -161,6 +161,7 @@ wheels = [
 name = "credit-default-risk"
 version = "0.1.0"
 source = { editable = "." }
+default-groups = ["dev", "pipeline"]
 dependencies = [
     { name = "fastapi" },
     { name = "joblib" },
@@ -171,16 +172,19 @@ dependencies = [
     { name = "uvicorn" },
     { name = "xgboost", marker = "sys_platform != 'linux'" },
     { name = "xgboost-cpu", marker = "sys_platform == 'linux'" },
-    { name = "xlrd" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "httpx2" },
-    { name = "matplotlib" },
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "ruff" },
+]
+pipeline = [
+    { name = "matplotlib" },
+    { name = "scipy" },
+    { name = "xlrd" },
 ]
 
 [package.metadata]
@@ -194,16 +198,19 @@ requires-dist = [
     { name = "uvicorn", specifier = ">=0.54.0" },
     { name = "xgboost", marker = "sys_platform != 'linux'", specifier = ">=3.4.1" },
     { name = "xgboost-cpu", marker = "sys_platform == 'linux'", specifier = ">=3.4.1" },
-    { name = "xlrd", specifier = ">=2.0.2" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "httpx2", specifier = ">=2.13.1" },
-    { name = "matplotlib", specifier = ">=3.11.2" },
     { name = "pre-commit", specifier = ">=4.7.0" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "ruff", specifier = ">=0.17.1" },
+]
+pipeline = [
+    { name = "matplotlib", specifier = ">=3.11.2" },
+    { name = "scipy", specifier = ">=1.18.1" },
+    { name = "xlrd", specifier = ">=2.0.2" },
 ]
 
 [[package]]

@@ -10,6 +10,16 @@ from credit_default_risk.config import load_config, project_path
 from credit_default_risk.data import load_clients
 
 
+def make_split(
+    df: pd.DataFrame, target: str, test_size: float, seed: int
+) -> tuple[pd.Index, pd.Index]:
+    """Stratified train/test client IDs, sorted."""
+    train_ids, test_ids = train_test_split(
+        df.index, test_size=test_size, stratify=df[target], random_state=seed
+    )
+    return train_ids.sort_values(), test_ids.sort_values()
+
+
 def load_split(name: str, cfg: dict | None = None) -> pd.DataFrame:
     """Return the rows of the `train` or `test` split."""
     cfg = cfg or load_config()
@@ -21,18 +31,12 @@ def main() -> None:
     cfg = load_config()
     target = cfg["data"]["target"]
     df = load_clients(cfg)
+    splits = make_split(df, target, cfg["data"]["test_size"], cfg["seed"])
 
-    train_ids, test_ids = train_test_split(
-        df.index,
-        test_size=cfg["data"]["test_size"],
-        stratify=df[target],
-        random_state=cfg["seed"],
-    )
     out_dir = project_path(cfg["data"]["processed_dir"])
-    for name, ids in [("train", train_ids), ("test", test_ids)]:
-        pd.Series(sorted(ids), name="ID").to_csv(out_dir / f"{name}_ids.csv", index=False)
-        rate = df.loc[ids, target].mean()
-        print(f"{name}: {len(ids)} rows, default rate {rate:.4f}")
+    for name, ids in zip(["train", "test"], splits, strict=True):
+        pd.Series(ids, name="ID").to_csv(out_dir / f"{name}_ids.csv", index=False)
+        print(f"{name}: {len(ids)} rows, default rate {df.loc[ids, target].mean():.4f}")
 
 
 if __name__ == "__main__":

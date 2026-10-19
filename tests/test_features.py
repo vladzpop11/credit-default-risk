@@ -1,3 +1,5 @@
+import pytest
+
 from credit_default_risk.features import ENGINEERED, SENSITIVE, build_preprocessor, prepare
 
 
@@ -41,3 +43,8 @@ def test_preprocessor_can_exclude_sensitive_features(make_clients) -> None:
     X = prepare(make_clients())
     names = build_preprocessor(exclude=SENSITIVE).fit(X).get_feature_names_out()
     assert not any(n.startswith(("SEX", "MARRIAGE", "AGE")) for n in names)
+
+
+def test_prepare_rejects_missing_non_sensitive_columns(make_clients) -> None:
+    with pytest.raises(ValueError, match="BILL_AMT3"):
+        prepare(make_clients().drop(columns=["BILL_AMT3"]))

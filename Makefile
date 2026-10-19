@@ -1,71 +1,85 @@
-IMAGE := credit-default-risk:dev
-PORT  := 8000
+IMAGE ?= credit-default-risk:dev
+NAME  ?= credit-default-risk
+PORT  ?= 8000
 
-.PHONY: setup format lint test check data split eda cv train analysis evaluate serve docker-build docker-run docker-stop demo verify reproduce-check
+.PHONY: help setup format lint test check data split eda cv train analysis evaluate \
+        uncertainty verify reproduce-check serve docker-build docker-run docker-stop \
+        docker-smoke demo
 
-setup:
-	uv sync
+help:  ## List the targets
+	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-16s %s\n", $$1, $$2}'
 
-format:
+setup:  ## Install dependencies from uv.lock
+	uv sync --locked
+
+format:  ## Format and auto-fix lint
 	uv run ruff format .
 	uv run ruff check --fix .
 
-lint:
+lint:  ## Ruff lint and format check
 	uv run ruff check .
 	uv run ruff format --check .
 
-test:
+test:  ## Run the test suite
 	uv run pytest
 
-check: lint test
+check: lint test  ## Lint + tests
 
-data:
+data:  ## Download the UCI data (SHA-256 verified)
 	uv run python -m credit_default_risk.data
 
-split:
+split:  ## Stratified 80/20 train/test split
 	uv run python -m credit_default_risk.split
 
-eda:
+eda:  ## Exploratory plots (training split only)
 	uv run python -m credit_default_risk.eda
 
-cv:
+cv:  ## Cross-validate all candidate models
 	uv run python -m credit_default_risk.cv
 
-# Refuses to replace the model evaluated on the test set unless FORCE=1.
-train:
+train:  ## Train the chosen model (refuses to replace the evaluated one unless FORCE=1)
 	uv run python -m credit_default_risk.train
 
-analysis:
+analysis:  ## Threshold, error and fairness analysis (training split, out-of-fold)
 	uv run python -m credit_default_risk.analysis
 
-# Runs once: refuses to overwrite reports/test_metrics.json unless FORCE=1.
-evaluate:
+evaluate:  ## One-time test evaluation (refuses to run again unless FORCE=1)
 	uv run python -m credit_default_risk.evaluate
 
-# Is models/model.joblib the file evaluated on the test set?
-verify:
+uncertainty:  ## Bootstrap intervals for the recorded test result (no new decisions)
+	uv run python -m credit_default_risk.uncertainty
+
+verify:  ## Is models/model.joblib the evaluated file? (exit 1 if not)
 	uv run python -m credit_default_risk.verify model
 
-# Is a retrained model (e.g. in CI) within tolerance of the evaluated one?
-reproduce-check:
+reproduce-check:  ## Is the local retrain within tolerance of the evaluated model? (exit 1 if not)
 	uv run python -m credit_default_risk.verify reproduce
 
-serve:
+serve:  ## Run the API locally without Docker
 	uv run uvicorn credit_default_risk.api:app --host 127.0.0.1 --port $(PORT)
 
-docker-build: models/model.joblib
+docker-build: models/model.joblib  ## Build the API image
 	docker build --platform=linux/amd64 -t $(IMAGE) .
 
-docker-run:
-	docker run --rm -d --name credit-default-risk -p $(PORT):8000 $(IMAGE)
+docker-run:  ## Start the API container on localhost:$(PORT) (replaces a running one)
+	-@docker rm -f $(NAME) >/dev/null 2>&1
+	docker run --rm -d --name $(NAME) -p 127.0.0.1:$(PORT):8000 $(IMAGE)
 
-docker-stop:
-	docker stop credit-default-risk
+docker-stop:  ## Stop the API container
+	docker stop $(NAME)
+
+docker-smoke: docker-run  ## Start the container, check /health and /predict, stop it
+	@for i in $$(seq 1 30); do curl -sf localhost:$(PORT)/health >/dev/null && break; sleep 1; done
+	curl -sf localhost:$(PORT)/health
+	@echo
+	curl -sf -X POST localhost:$(PORT)/predict -H 'Content-Type: application/json' \
+	  -d @tests/example_client.json
+	@echo
+	docker stop $(NAME)
 
 # Trains only when no model exists, so make demo never replaces the evaluated model.
 models/model.joblib:
 	uv run python -m credit_default_risk.train
 
-# Everything from scratch: download, split, train, build and start the API.
-demo: setup data split models/model.joblib docker-build docker-run
+demo: setup data split models/model.joblib docker-build docker-run  ## Everything from scratch, then the API
 	@echo "API running: http://localhost:$(PORT)/docs  (stop with: make docker-stop)"

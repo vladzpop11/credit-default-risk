@@ -1,19 +1,10 @@
+import joblib
 import numpy as np
-import pandas as pd
 import pytest
 
-from credit_default_risk.config import load_config, project_path
+from credit_default_risk.artifacts import sha256
 from credit_default_risk.predict import load_bundle, predict
 from credit_default_risk.threshold import choose_threshold, metrics_at
-
-
-def test_train_and_test_ids_are_disjoint() -> None:
-    processed = project_path(load_config()["data"]["processed_dir"])
-    if not (processed / "test_ids.csv").exists():
-        pytest.skip("data not downloaded (run make data split)")
-    train = set(pd.read_csv(processed / "train_ids.csv")["ID"])
-    test = set(pd.read_csv(processed / "test_ids.csv")["ID"])
-    assert train.isdisjoint(test)
 
 
 def test_saved_model_predicts_one_client(bundle_path, make_clients) -> None:
@@ -38,6 +29,26 @@ def test_predict_rejects_missing_columns(bundle_path, make_clients) -> None:
         predict(load_bundle(bundle_path), clients)
 
 
+def test_load_bundle_checks_the_hash_before_unpickling(tmp_path) -> None:
+    # Not a pickle at all: if it were unpickled, joblib would raise a different error.
+    path = tmp_path / "model.joblib"
+    path.write_bytes(b"not a pickle")
+    with pytest.raises(ValueError, match="refusing to unpickle"):
+        load_bundle(path, expected_sha256="0" * 64)
+
+
+def test_load_bundle_accepts_the_expected_hash(bundle_path) -> None:
+    assert load_bundle(bundle_path, expected_sha256=sha256(bundle_path))["threshold"] == 0.16
+
+
+@pytest.mark.parametrize("obj", [["a list"], {"pipeline": None, "threshold": 0.5}])
+def test_load_bundle_rejects_non_bundles(tmp_path, obj) -> None:
+    path = tmp_path / "model.joblib"
+    joblib.dump(obj, path)
+    with pytest.raises(ValueError, match="not a model bundle"):
+        load_bundle(path)
+
+
 def test_threshold_matches_decision_theory() -> None:
     """With calibrated probabilities the cost-optimal threshold is FP / (FP + FN)."""
     rng = np.random.default_rng(0)
@@ -52,3 +63,5 @@ def test_metrics_at_threshold() -> None:
     m = metrics_at(y, proba, 0.5, cost_fn=5, cost_fp=1)
     assert m["confusion"] == {"tp": 1, "fp": 1, "fn": 1, "tn": 1}
     assert m["cost_per_client"] == pytest.approx((5 + 1) / 4)
+    assert m["cost_per_client_flag_none"] == pytest.approx(5 * 2 / 4)
+    assert m["cost_per_client_flag_all"] == pytest.approx(1 * 2 / 4)

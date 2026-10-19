@@ -1,4 +1,8 @@
-"""Save, load and use the trained model bundle (pipeline + threshold + metadata)."""
+"""Save, load and use the trained model bundle (pipeline + threshold + metadata).
+
+The bundle is a joblib pickle: loading it runs code stored in the file. Only load model
+files you produced or trust; pass `expected_sha256` to check the file before unpickling.
+"""
 
 from pathlib import Path
 from typing import Any
@@ -6,7 +10,10 @@ from typing import Any
 import joblib
 import pandas as pd
 
+from credit_default_risk.artifacts import sha256
 from credit_default_risk.features import RAW_FEATURES, prepare
+
+BUNDLE_KEYS = {"pipeline", "threshold", "input_features", "metadata"}
 
 
 def input_features(exclude: list[str]) -> list[str]:
@@ -19,11 +26,12 @@ def save_bundle(bundle: dict[str, Any], path: Path) -> None:
     joblib.dump(bundle, path)
 
 
-def load_bundle(path: Path) -> dict[str, Any]:
+def load_bundle(path: Path, expected_sha256: str | None = None) -> dict[str, Any]:
+    if expected_sha256 is not None and sha256(path) != expected_sha256:
+        raise ValueError(f"{path} does not match the expected SHA-256; refusing to unpickle it")
     bundle = joblib.load(path)
-    missing = {"pipeline", "threshold", "input_features", "metadata"} - bundle.keys()
-    if missing:
-        raise ValueError(f"model bundle {path} is missing {sorted(missing)}")
+    if not isinstance(bundle, dict) or BUNDLE_KEYS - bundle.keys():
+        raise ValueError(f"{path} is not a model bundle with keys {sorted(BUNDLE_KEYS)}")
     return bundle
 
 

@@ -61,9 +61,13 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
 def prepare(df: pd.DataFrame) -> pd.DataFrame:
     """Raw client rows -> model input rows. Used identically in training and serving.
 
-    Columns the model does not use (the excluded sensitive attributes) may be absent;
-    they are filled with NaN and dropped by the preprocessor.
+    Only the sensitive attributes, which the model does not use, may be absent; they are
+    filled with NaN and dropped by the preprocessor. Any other missing column is an error,
+    so a broken column rename cannot silently become an all-NaN feature.
     """
+    missing = set(RAW_FEATURES) - set(SENSITIVE) - set(df.columns)
+    if missing:
+        raise ValueError(f"missing input columns: {sorted(missing)}")
     return add_features(clean(df.reindex(columns=RAW_FEATURES)))
 
 
@@ -71,17 +75,26 @@ def signed_log1p(x: np.ndarray) -> np.ndarray:
     return np.sign(x) * np.log1p(np.abs(x))
 
 
-def feature_columns(exclude: list[str] | None = None) -> tuple[list[str], list[str], list[str]]:
-    """Return (categorical, amount, other numeric) column lists, minus `exclude`."""
+def feature_columns(
+    exclude: list[str] | None = None, pay_onehot: bool = False
+) -> tuple[list[str], list[str], list[str]]:
+    """Return (categorical, amount, other numeric) column lists, minus `exclude`.
+
+    With `pay_onehot`, the repayment status codes are treated as categories (the codes
+    -2, -1 and 0 are not on a numeric scale); this matters for linear models only.
+    """
     exclude = set(exclude or [])
-    categorical = [c for c in CATEGORICAL if c not in exclude]
+    pay_as = PAY_STATUS if pay_onehot else []
+    categorical = [c for c in [*CATEGORICAL, *pay_as] if c not in exclude]
     amounts = [c for c in AMOUNTS if c not in exclude]
-    numeric = [c for c in ["AGE", *PAY_STATUS, *ENGINEERED] if c not in exclude]
+    numeric = [c for c in ["AGE", *PAY_STATUS, *ENGINEERED] if c not in exclude and c not in pay_as]
     return categorical, amounts, numeric
 
 
-def build_preprocessor(exclude: list[str] | None = None) -> ColumnTransformer:
-    categorical, amounts, numeric = feature_columns(exclude)
+def build_preprocessor(
+    exclude: list[str] | None = None, pay_onehot: bool = False
+) -> ColumnTransformer:
+    categorical, amounts, numeric = feature_columns(exclude, pay_onehot)
     amount_pipe = Pipeline(
         [
             ("impute", SimpleImputer(strategy="median")),
