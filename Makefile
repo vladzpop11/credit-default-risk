@@ -4,7 +4,7 @@ PORT  ?= 8000
 
 .PHONY: help setup format lint test check data split eda cv train analysis evaluate \
         uncertainty verify reproduce-check serve docker-build docker-run docker-stop \
-        docker-smoke demo
+        docker-smoke latency demo
 
 help:  ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-16s %s\n", $$1, $$2}'
@@ -76,6 +76,9 @@ docker-smoke: docker-run  ## Start the container, check /health and /predict, st
 	  -d @tests/example_client.json
 	@echo
 	docker stop $(NAME)
+
+latency:  ## Measure /predict latency against the running API (writes reports/latency.json)
+	uv run python -m credit_default_risk.latency http://localhost:$(PORT)
 
 # Trains only when no model exists, so make demo never replaces the evaluated model.
 models/model.joblib:

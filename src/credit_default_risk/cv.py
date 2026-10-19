@@ -38,9 +38,18 @@ def evaluate(pipeline: Pipeline, X: pd.DataFrame, y: pd.Series, cv) -> dict[str,
 
 
 def paired(a: np.ndarray, b: np.ndarray) -> tuple[float, float, float]:
-    """Mean and standard deviation of fold-wise a - b, and the paired t-test p-value."""
+    """Mean and standard deviation of fold-wise a - b, and a corrected paired t-test p-value.
+
+    CV folds share training data, so a plain paired t-test is over-confident. This uses the
+    Nadeau-Bengio correction for k-fold CV: variance x (1/k + n_test/n_train), with
+    n_test/n_train = 1/(k-1).
+    """
     d = a - b
-    return float(d.mean()), float(d.std(ddof=1)), float(stats.ttest_rel(a, b).pvalue)
+    k = len(d)
+    var = d.var(ddof=1) * (1 / k + 1 / (k - 1))
+    t = d.mean() / np.sqrt(var) if var > 0 else np.inf * np.sign(d.mean())
+    p = 2 * stats.t.sf(abs(t), df=k - 1)
+    return float(d.mean()), float(d.std(ddof=1)), float(p)
 
 
 def to_markdown(results: dict[str, dict], n_splits: int) -> str:
@@ -61,8 +70,10 @@ def to_markdown(results: dict[str, dict], n_splits: int) -> str:
         "",
         f"## Paired PR-AUC differences against the chosen model ({CHOSEN})",
         "",
-        "Fold-wise difference (chosen minus other), its standard deviation, and the paired "
-        "t-test p-value. With 5 folds the test has little power: treat p > 0.05 as a tie.",
+        "Fold-wise difference (chosen minus other), its standard deviation, and the p-value "
+        "of a paired t-test with the Nadeau-Bengio correction for overlapping CV training "
+        "sets. With 5 folds the test has little power: p > 0.05 means the models cannot be "
+        "distinguished, not that they are equal.",
         "",
         "| Other model | Mean difference | SD | p-value |",
         "| --- | --- | --- | --- |",

@@ -4,13 +4,14 @@ The bundle is a joblib pickle: loading it runs code stored in the file. Only loa
 files you produced or trust; pass `expected_sha256` to check the file before unpickling.
 """
 
+import hashlib
+import io
 from pathlib import Path
 from typing import Any
 
 import joblib
 import pandas as pd
 
-from credit_default_risk.artifacts import sha256
 from credit_default_risk.features import RAW_FEATURES, prepare
 
 BUNDLE_KEYS = {"pipeline", "threshold", "input_features", "metadata"}
@@ -26,13 +27,24 @@ def save_bundle(bundle: dict[str, Any], path: Path) -> None:
     joblib.dump(bundle, path)
 
 
-def load_bundle(path: Path, expected_sha256: str | None = None) -> dict[str, Any]:
-    if expected_sha256 is not None and sha256(path) != expected_sha256:
+def read_bundle(path: Path, expected_sha256: str | None = None) -> tuple[dict[str, Any], str]:
+    """Load a bundle and return it with its file's SHA-256.
+
+    The file is read once: the bytes that are hashed are the bytes that are unpickled, so
+    the file cannot be swapped between the check and the load.
+    """
+    data = path.read_bytes()
+    actual = hashlib.sha256(data).hexdigest()
+    if expected_sha256 is not None and actual != expected_sha256:
         raise ValueError(f"{path} does not match the expected SHA-256; refusing to unpickle it")
-    bundle = joblib.load(path)
+    bundle = joblib.load(io.BytesIO(data))
     if not isinstance(bundle, dict) or BUNDLE_KEYS - bundle.keys():
         raise ValueError(f"{path} is not a model bundle with keys {sorted(BUNDLE_KEYS)}")
-    return bundle
+    return bundle, actual
+
+
+def load_bundle(path: Path, expected_sha256: str | None = None) -> dict[str, Any]:
+    return read_bundle(path, expected_sha256)[0]
 
 
 def predict(bundle: dict[str, Any], records: pd.DataFrame) -> pd.DataFrame:

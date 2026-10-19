@@ -23,7 +23,7 @@ def test_verify_sha256(tmp_path) -> None:
     path = tmp_path / "raw.xls"
     path.write_bytes(b"data")
     verify_sha256(path, sha256(path))
-    with pytest.raises(ValueError, match="upstream file changed"):
+    with pytest.raises(ValueError, match="pins"):
         verify_sha256(path, "0" * 64)
 
 

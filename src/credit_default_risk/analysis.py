@@ -133,6 +133,7 @@ def cost_sensitivity(y: np.ndarray, proba: np.ndarray, ever_late: np.ndarray) ->
                 "best trivial policy cost": best_trivial,
                 "model cut vs best trivial": 1 - model / best_trivial,
                 "'ever late' rule cut vs best trivial": 1 - rule / best_trivial,
+                "model cut vs 'ever late' rule": 1 - model / rule,
             }
         )
     return pd.DataFrame(rows)
@@ -194,22 +195,26 @@ def segment_table(df: pd.DataFrame, by: pd.Series) -> pd.DataFrame:
 
 
 def group_calibration(df: pd.DataFrame, groups: dict[str, pd.Series]) -> pd.DataFrame:
-    """Calibration gap per audited group, with 95% intervals, plain and Bonferroni-corrected
-    for the number of groups compared."""
+    """Test, per audited group, whether the mean prediction matches the observed rate.
+
+    Under the hypothesis that the predictions are calibrated, the number of defaults in a
+    group has variance sum(p_i (1 - p_i)), so the standard error of the gap comes from the
+    predictions themselves. Significance is Bonferroni-corrected for the number of groups.
+    """
     z, z_bonf = norm.ppf(0.975), norm.ppf(1 - 0.05 / (2 * len(groups)))
     rows = []
     for name, mask in groups.items():
         g = df[mask]
-        p = g["y"].mean()
-        se = np.sqrt(p * (1 - p) / len(g))
-        gap = g["proba"].mean() - p
+        se = np.sqrt((g["proba"] * (1 - g["proba"])).sum()) / len(g)
+        gap = g["proba"].mean() - g["y"].mean()
         rows.append(
             {
                 "group": name,
                 "clients": len(g),
-                "observed (%)": p * 100,
+                "observed (%)": g["y"].mean() * 100,
                 "mean predicted (%)": g["proba"].mean() * 100,
                 "gap (pp)": gap * 100,
+                "z": gap / se,
                 "95% half-width (pp)": z * se * 100,
                 "corrected half-width (pp)": z_bonf * se * 100,
                 "significant after correction": bool(abs(gap) > z_bonf * se),
@@ -343,8 +348,9 @@ def main() -> None:
     lines += [
         "## Fairness audit: calibration by group",
         "",
-        f"95% intervals of the observed rate (±1.96 SE), and Bonferroni-corrected for "
-        f"{len(groups)} groups.",
+        "Gap = mean predicted minus observed. The standard error assumes the predictions are "
+        f"calibrated (variance from the predicted probabilities); 95% intervals are ±1.96 SE, "
+        f"and the corrected ones are Bonferroni-adjusted for {len(groups)} groups.",
         "",
         to_markdown(group_calibration(df, groups), digits=2),
         "",

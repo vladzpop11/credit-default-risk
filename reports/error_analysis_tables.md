@@ -14,14 +14,14 @@ Out-of-fold predictions on the training split (24,000 clients), threshold 0.16. 
 
 ## Cost-ratio sensitivity (threshold re-chosen for each ratio)
 
-| missed : false alarm | threshold | model cost | best trivial policy cost | model cut vs best trivial | 'ever late' rule cut vs best trivial |
-| --- | --- | --- | --- | --- | --- |
-| 2:1 | 0.320 | 0.304 | 0.442 | 0.313 | 0.220 |
-| 3:1 | 0.270 | 0.401 | 0.664 | 0.396 | 0.365 |
-| 4:1 | 0.210 | 0.482 | 0.779 | 0.381 | 0.361 |
-| 5:1 | 0.160 | 0.543 | 0.779 | 0.302 | 0.263 |
-| 7:1 | 0.120 | 0.630 | 0.779 | 0.190 | 0.067 |
-| 10:1 | 0.070 | 0.698 | 0.779 | 0.103 | -0.227 |
+| missed : false alarm | threshold | model cost | best trivial policy cost | model cut vs best trivial | 'ever late' rule cut vs best trivial | model cut vs 'ever late' rule |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2:1 | 0.320 | 0.304 | 0.442 | 0.313 | 0.220 | 0.119 |
+| 3:1 | 0.270 | 0.401 | 0.664 | 0.396 | 0.365 | 0.049 |
+| 4:1 | 0.210 | 0.482 | 0.779 | 0.381 | 0.361 | 0.032 |
+| 5:1 | 0.160 | 0.543 | 0.779 | 0.302 | 0.263 | 0.054 |
+| 7:1 | 0.120 | 0.630 | 0.779 | 0.190 | 0.067 | 0.132 |
+| 10:1 | 0.070 | 0.698 | 0.779 | 0.103 | -0.227 | 0.269 |
 
 ## Threshold stability
 
@@ -115,16 +115,16 @@ Brier score 0.1342 (prior-only 0.1723); expected calibration error 0.0107.
 
 ## Fairness audit: calibration by group
 
-95% intervals of the observed rate (±1.96 SE), and Bonferroni-corrected for 6 groups.
+Gap = mean predicted minus observed. The standard error assumes the predictions are calibrated (variance from the predicted probabilities); 95% intervals are ±1.96 SE, and the corrected ones are Bonferroni-adjusted for 6 groups.
 
-| group | clients | observed (%) | mean predicted (%) | gap (pp) | 95% half-width (pp) | corrected half-width (pp) | significant after correction |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| female | 14,514 | 20.65 | 21.09 | 0.44 | 0.66 | 0.89 | no |
-| male | 9,486 | 24.37 | 23.40 | -0.97 | 0.86 | 1.16 | no |
-| age 21-25 | 3,104 | 26.93 | 27.10 | 0.16 | 1.56 | 2.10 | no |
-| age 26-40 | 14,336 | 20.26 | 20.65 | 0.39 | 0.66 | 0.89 | no |
-| age 41-60 | 6,346 | 23.79 | 22.47 | -1.32 | 1.05 | 1.41 | no |
-| age 61+ | 214 | 27.57 | 25.14 | -2.43 | 5.99 | 8.06 | no |
+| group | clients | observed (%) | mean predicted (%) | gap (pp) | z | 95% half-width (pp) | corrected half-width (pp) | significant after correction |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| female | 14,514 | 20.65 | 21.09 | 0.44 | 1.50 | 0.58 | 0.78 | no |
+| male | 9,486 | 24.37 | 23.40 | -0.97 | -2.59 | 0.74 | 0.99 | no |
+| age 21-25 | 3,104 | 26.93 | 27.10 | 0.16 | 0.24 | 1.37 | 1.84 | no |
+| age 26-40 | 14,336 | 20.26 | 20.65 | 0.39 | 1.33 | 0.58 | 0.78 | no |
+| age 41-60 | 6,346 | 23.79 | 22.47 | -1.32 | -2.90 | 0.89 | 1.20 | yes |
+| age 61+ | 214 | 27.57 | 25.14 | -2.43 | -0.97 | 4.93 | 6.64 | no |
 
 ## Fairness audit: young clients and credit limits
 

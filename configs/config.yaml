@@ -9,6 +9,11 @@ data:
   sha256: 30c6be3abd8dcfd3e6096c828bad8c2f011238620f5369220bd60cfc82700933
   target: default
   test_size: 0.2
+  # SHA-256 of the saved split (data/processed/*_ids.csv); split.py refuses any other split,
+  # so a change in scikit-learn's splitting cannot silently produce a different test set.
+  split_sha256:
+    train: c84469a7456b3a9edab8344eb94fc441604f111f5e1a4c1f3ff7ee58eaeb48cf
+    test: 74c0030710bee9941808e10456bdff0f05321e6ce7162a75fbdf2e1aba30ca75
 
 cv:
   n_splits: 5

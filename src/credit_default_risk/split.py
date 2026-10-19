@@ -7,7 +7,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 from credit_default_risk.config import load_config, project_path
-from credit_default_risk.data import load_clients
+from credit_default_risk.data import load_clients, verify_sha256
 
 
 def make_split(
@@ -35,8 +35,11 @@ def main() -> None:
 
     out_dir = project_path(cfg["data"]["processed_dir"])
     for name, ids in zip(["train", "test"], splits, strict=True):
-        pd.Series(ids, name="ID").to_csv(out_dir / f"{name}_ids.csv", index=False)
+        path = out_dir / f"{name}_ids.csv"
+        pd.Series(ids, name="ID").to_csv(path, index=False)
+        verify_sha256(path, cfg["data"]["split_sha256"][name])
         print(f"{name}: {len(ids)} rows, default rate {df.loc[ids, target].mean():.4f}")
+    print("split SHA-256 verified")
 
 
 if __name__ == "__main__":

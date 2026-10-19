@@ -63,10 +63,12 @@ make docker-stop
    - The same `prepare()` function runs in training and in the API.
    - Tests check that the model inputs cannot depend on the target, that every out-of-fold score comes from a pipeline refitted without that fold, and that a training path scoring rows its model has seen would be caught.
 4. **Model selection** ([reports/cv_results.md](reports/cv_results.md)): stratified 5-fold cross-validation, with every model on the same folds and compared through paired fold differences.
-   - **XGBoost was chosen before the test set was opened.** It is statistically tied with random forest (+0.004 PR-AUC, p = 0.10) and with a logistic regression that one-hot encodes the repayment codes (+0.009, p = 0.13). The one-hot logistic regression was added after a review; the original logistic regression treated the codes as numbers and lost clearly (+0.045, p = 0.001).
+   - **XGBoost was chosen before the test set was opened.** With 5 folds it cannot be distinguished from random forest (+0.004 PR-AUC, p = 0.23), or from a logistic regression that one-hot encodes the repayment codes, compared like for like without the sensitive attributes (+0.011, p = 0.25).
+   - The one-hot logistic regression was added after a review. The original logistic regression, which treated the codes as numbers, loses clearly (+0.045, p = 0.003).
+   - p-values come from paired t-tests with the Nadeau–Bengio correction for overlapping cross-validation training sets.
    - **The tie was broken by speed:** XGBoost cross-validates about 5× faster than the random forest on this machine.
    - **All models use fixed, untuned settings.**
-5. **Sensitive attributes removed.** Dropping sex, marital status and age changed cross-validated PR-AUC by −0.0002, paired fold standard deviation 0.0039, p = 0.90. They are not model inputs, and the API does not accept them.
+5. **Sensitive attributes removed.** Dropping sex, marital status and age changed cross-validated PR-AUC by −0.0002, paired fold standard deviation 0.0039, corrected p = 0.94. They are not model inputs, and the API does not accept them.
 6. **Cost-based threshold** ([reports/error_analysis.md](reports/error_analysis.md)). 0.16 minimises the expected cost on out-of-fold predictions. That is consistent with the Bayes-optimal 1/(1+5) ≈ 0.167, as expected given good calibration near that value. The per-fold optima range from 0.16 to 0.20.
 
 ## Results
@@ -78,6 +80,7 @@ Cross-validation on the training split (5 folds, mean ± std):
 | Baseline (prior) | 0.221 ± 0.000 | 0.500 ± 0.000 |
 | Logistic regression (repayment codes as numbers) | 0.515 ± 0.013 | 0.764 ± 0.008 |
 | Logistic regression (repayment codes one-hot) | 0.551 ± 0.020 | 0.781 ± 0.009 |
+| Logistic regression (one-hot, without sex, marital status, age) | 0.549 ± 0.020 | 0.780 ± 0.009 |
 | Random forest | 0.555 ± 0.012 | 0.782 ± 0.008 |
 | XGBoost | 0.560 ± 0.013 | 0.784 ± 0.006 |
 | **XGBoost without sex, marital status, age (chosen)** | **0.560 ± 0.013** | **0.783 ± 0.006** |
@@ -96,10 +99,10 @@ Final model, threshold 0.16 ([reports/test_metrics.json](reports/test_metrics.js
 | … if everyone is approved | 1.106 | 1.106 |
 | … with the rule "flag anyone ever late" | 0.574 | not evaluated |
 
-- **The test PR-AUC agrees with the out-of-fold PR-AUC.** The gap is −0.004, with a 95% CI of −0.032 to +0.026.
+- **The test PR-AUC agrees with the out-of-fold PR-AUC.** The gap is −0.004, with a 95% CI of −0.032 to +0.026. That interval treats the out-of-fold value as fixed, so it slightly understates the uncertainty.
 - **No hyperparameters were tuned,** so this is a check on the estimate, not on overfitting to the folds.
 - **The test clients come from the same months as the training clients,** so the result says nothing about later months.
-- **Serving:** CPU inference in Docker on a 2-core 2018 MacBook Air takes 32 ms on average and 51 ms at p95 per request, end to end over HTTP (50 requests).
+- **Serving:** CPU inference in Docker on a 2-core 2018 MacBook Air takes 34 ms on average and 41 ms at p95 per request, end to end over HTTP (50 requests after a warm-up). Measured with `make latency`; recorded in [reports/latency.json](reports/latency.json).
 
 ### Test-set use
 
@@ -119,10 +122,10 @@ The test set has been evaluated twice, and both results are kept.
   | Trained on | OOF PR-AUC | Threshold |
   | --- | --- | --- |
   | macOS x86_64 (the evaluated model) | 0.5589 | 0.16 |
-  | Linux x86_64 (as in CI) | 0.5573 | 0.16 |
+  | Linux x86_64 (as in CI; printed by its `make reproduce-check` step) | 0.5573 | 0.16 |
 
 - **The released artifact is the evaluated model file, not a retrain.** Its SHA-256 is recorded in `reports/test_metrics.json`, and `GET /health` reports `"evaluated_model": true` only for that file. The file is not in git, so on a fresh clone `make demo` trains a new model, and `/health` says `false`.
-- **`make verify`** checks that `models/model.joblib` is the evaluated file. **`make reproduce-check`** checks that a local retrain is within 0.005 PR-AUC and 0.02 threshold of it. Both exit with status 1 when the check fails, and `make evaluate` refuses to run twice; seeing `make: *** Error 1` in those cases is intended.
+- **`make verify`** checks that `models/model.joblib` is the evaluated file. **`make reproduce-check`** checks that a local retrain is within 0.005 PR-AUC and 0.02 threshold of it; when the local model *is* the evaluated file, it passes and says so. Both exit with status 1 when the check fails, and `make evaluate` refuses to run twice; seeing `make: *** Error 1` in those cases is intended.
 - **Where training output goes:** retraining writes only to `models/` (the model and `train_summary.json`). The tracked record of the evaluated model in `reports/` is never overwritten.
 - **Model files are pickles.** Loading one runs code inside it, so only load files you trust. Set `MODEL_SHA256` to make the API refuse any other file before unpickling it.
 - **CI** checks dependencies for known vulnerabilities and runs the tests. It then retrains from the public source, runs `make reproduce-check`, builds the image and smoke-tests it. The image is not published.
@@ -162,8 +165,11 @@ flowchart LR
 - **The 5:1 cost ratio is an assumption, and the results depend on it.**
   - At 5:1, 45% of clients are flagged, which only makes sense for a cheap action.
   - Flagging a defaulter is assumed to prevent the whole loss at no cost.
-  - The cut against the best simple policy ranges from 10% (10:1) to 40% (3:1); see the sensitivity table in [error_analysis.md](reports/error_analysis.md).
-- **Indirect group differences remain.** Good clients aged 21–25 are wrongly flagged 50% of the time, against 34% for ages 26–40. That is mostly because the bank gave them lower credit limits; at the 26–40 limit mix their rate would be 30%. No group's calibration gap is significant after correcting for multiple comparisons.
+  - The cut against the best trivial policy ranges from 10% (10:1) to 40% (3:1).
+  - The model's lead over the "ever late" rule ranges from 3% (4:1) to 27% (10:1); see the sensitivity table in [error_analysis.md](reports/error_analysis.md).
+- **Indirect group differences remain.**
+  - Good clients aged 21–25 are wrongly flagged 50% of the time, against 34% for ages 26–40. That is mostly because the bank gave them lower credit limits; at the 26–40 limit mix their rate would be 30%.
+  - The model slightly under-predicts risk for ages 41–60 (22.5% predicted vs 23.8% observed). That gap is significant after correcting for 6 comparisons; men show the same direction, just short of significance.
 - **The model behaves oddly where data is thin.**
   - Predicted risk peaks at three months late and *drops* for longer delays. Only one training client was four or more months late in all six months.
   - "Other" education (386 training clients, 7.3% default rate) sharply lowers predicted risk.

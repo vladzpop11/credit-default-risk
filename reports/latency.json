@@ -1,0 +1,12 @@
+{
+  "measured_at": "2026-10-19T17:29:51+00:00",
+  "url": "http://localhost:8000",
+  "client_machine": "Darwin x86_64",
+  "requests": 50,
+  "mean_ms": 33.81315214064671,
+  "p50_ms": 31.58254600566579,
+  "p95_ms": 41.18651299359044,
+  "max_ms": 104.83667100197636,
+  "model_sha256": "8e01702cd2fdaba6ba63ed886a2e081c56a81799378d3c567d1f8785878e2639",
+  "evaluated_model": true
+}

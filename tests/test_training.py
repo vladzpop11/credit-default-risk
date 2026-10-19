@@ -54,9 +54,10 @@ def test_each_fold_is_scored_by_a_pipeline_fitted_without_it(make_clients, small
     clients = make_clients(n=600, seed=6)
     X, y = prepare(clients), clients["default"]
     oof = train.out_of_fold(X, y, small_cfg)
-    fit_idx, val_idx = next(make_cv(small_cfg).split(X, y))
-    manual = chosen_pipeline(small_cfg).fit(X.iloc[fit_idx], y.iloc[fit_idx])
-    np.testing.assert_allclose(oof[val_idx], manual.predict_proba(X.iloc[val_idx])[:, 1], rtol=1e-6)
+    for fit_idx, val_idx in make_cv(small_cfg).split(X, y):
+        manual = chosen_pipeline(small_cfg).fit(X.iloc[fit_idx], y.iloc[fit_idx])
+        expected = manual.predict_proba(X.iloc[val_idx])[:, 1]
+        np.testing.assert_allclose(oof[val_idx], expected, rtol=1e-6)
 
 
 # --- guards and verification ---------------------------------------------------------

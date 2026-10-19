@@ -34,17 +34,20 @@ Every number here comes from out-of-fold predictions on the 24,000 training clie
 
 The threshold is re-chosen on the out-of-fold predictions for each ratio, with the false-alarm cost fixed at 1.
 
-| Missed : false alarm | Threshold | Model cut vs best trivial policy | "Ever late" rule cut |
-| --- | --- | --- | --- |
-| 2:1 | 0.32 | 31.3% | 22.0% |
-| 3:1 | 0.27 | 39.6% | 36.5% |
-| 4:1 | 0.21 | 38.1% | 36.1% |
-| **5:1** | **0.16** | **30.2%** | **26.3%** |
-| 7:1 | 0.12 | 19.0% | 6.7% |
-| 10:1 | 0.07 | 10.3% | −22.7% |
+| Missed : false alarm | Threshold | Model cut vs best trivial policy | "Ever late" rule cut vs best trivial | Model cut vs the rule |
+| --- | --- | --- | --- | --- |
+| 2:1 | 0.32 | 31.3% | 22.0% | 11.9% |
+| 3:1 | 0.27 | 39.6% | 36.5% | 4.9% |
+| 4:1 | 0.21 | 38.1% | 36.1% | 3.2% |
+| **5:1** | **0.16** | **30.2%** | **26.3%** | **5.4%** |
+| 7:1 | 0.12 | 19.0% | 6.7% | 13.2% |
+| 10:1 | 0.07 | 10.3% | −22.7% | 26.9% |
 
 - The model beats the best trivial policy at every ratio.
-- Its advantage over the simple rule is small for ratios of 3–5, and large when misses are very expensive. At 10:1 the rule is worse than flagging everyone.
+- **Its advantage over the simple rule depends on the ratio:**
+  - 3–5% for ratios 3–5;
+  - 12% at 2:1;
+  - 13–27% when misses are very expensive (7:1 and 10:1). At 10:1 the rule is worse than flagging everyone.
 
 ## Calibration
 
@@ -87,18 +90,20 @@ Permutation importance (drop in PR-AUC when a feature is shuffled, averaged over
 
 ## Fairness audit
 
-Sex and age are not model inputs, but correlated features can still produce group differences. Six groups are audited, so the intervals are also corrected for multiple comparisons (Bonferroni, 6 tests).
+Sex and age are not model inputs, but correlated features can still produce group differences.
+- **The test:** for each group, does the mean prediction match the observed default rate? The standard error assumes the predictions are calibrated, so its variance comes from the predicted probabilities.
+- **Correction:** six groups are audited, so significance is Bonferroni-corrected (|z| > 2.64).
 
-| Group | Clients | Default rate | Mean predicted | Gap (pp) | 95% interval (pp) | Corrected interval (pp) | Flagged | False positive rate |
+| Group | Clients | Default rate | Mean predicted | Gap (pp) | z | Significant (corrected) | Flagged | False positive rate |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Female | 14,514 | 20.6% | 21.1% | +0.44 | ±0.66 | ±0.89 | 43.6% | 35.3% |
-| Male | 9,486 | 24.4% | 23.4% | −0.97 | ±0.86 | ±1.16 | 48.4% | 38.8% |
-| Age 21–25 | 3,104 | 26.9% | 27.1% | +0.16 | ±1.56 | ±2.10 | 58.3% | 49.6% |
-| Age 26–40 | 14,336 | 20.3% | 20.6% | +0.39 | ±0.66 | ±0.89 | 42.3% | 34.1% |
-| Age 41–60 | 6,346 | 23.8% | 22.5% | −1.32 | ±1.05 | ±1.41 | 46.4% | 36.6% |
-| Age 61+ | 214 | 27.6% | 25.1% | −2.43 | ±5.99 | ±8.06 | 49.5% | 36.8% |
+| Female | 14,514 | 20.6% | 21.1% | +0.44 | +1.50 | no | 43.6% | 35.3% |
+| Male | 9,486 | 24.4% | 23.4% | −0.97 | −2.59 | no (borderline) | 48.4% | 38.8% |
+| Age 21–25 | 3,104 | 26.9% | 27.1% | +0.16 | +0.24 | no | 58.3% | 49.6% |
+| Age 26–40 | 14,336 | 20.3% | 20.6% | +0.39 | +1.33 | no | 42.3% | 34.1% |
+| Age 41–60 | 6,346 | 23.8% | 22.5% | −1.32 | −2.90 | **yes** | 46.4% | 36.6% |
+| Age 61+ | 214 | 27.6% | 25.1% | −2.43 | −0.97 | no | 49.5% | 36.8% |
 
-- **Calibration by group:** no gap is significant after correcting for the 6 comparisons. Men and ages 41–60 are just outside their uncorrected intervals, which is weak evidence of a slight under-prediction at most.
-- **Young clients bear more false alarms.** Good clients aged 21–25 are wrongly flagged 49.6% of the time, against 34.1% for ages 26–40.
+- **Clients aged 41–60 are slightly under-predicted.** The model gives them about 1.3 points less risk than they show, so it is *lenient* on this group, not harsh. Men show the same direction, just short of significance.
+- **Young clients bear more false alarms.** Good clients aged 21–25 are wrongly flagged 49.6% of the time, against 34.1% for ages 26–40. They are not mis-calibrated: their mean prediction matches their default rate.
 - **Most of that gap is explained by credit limits.** The median limit is NT$50k at ages 21–25 against NT$160k at 26–40. Reweighting the young good clients to the credit-limit mix of ages 26–40 lowers their false positive rate to 30.4%.
-- The model does not use age, but it inherits the bank's lower limits for young clients. This would need a documented review before any real use.
+- The model does not use age, but it inherits the bank's lower limits for young clients, and it slightly understates risk for middle-aged clients. Both would need a documented review before any real use.

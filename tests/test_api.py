@@ -4,7 +4,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from credit_default_risk.api import MAX_BODY_BYTES, MAX_ERRORS, Client, app
+from credit_default_risk import api
+from credit_default_risk.api import MAX_BODY_BYTES, MAX_ERRORS, Client, RequestGuard, app
+from credit_default_risk.artifacts import sha256
+from credit_default_risk.predict import load_bundle, save_bundle
 
 EXAMPLE_FILE = Path(__file__).parent / "example_client.json"
 
@@ -165,4 +168,70 @@ def test_startup_refuses_a_model_with_the_wrong_hash(bundle_path, monkeypatch) -
     monkeypatch.setenv("MODEL_PATH", str(bundle_path))
     monkeypatch.setenv("MODEL_SHA256", "0" * 64)
     with pytest.raises(ValueError, match="refusing to unpickle"), TestClient(app):
+        pass
+
+
+def test_health_reports_the_evaluated_model(bundle_path, monkeypatch) -> None:
+    monkeypatch.setenv("MODEL_PATH", str(bundle_path))
+    monkeypatch.setattr(api.artifacts, "evaluated_model_sha", lambda cfg: sha256(bundle_path))
+    with TestClient(app) as c:
+        assert c.get("/health").json()["evaluated_model"] is True
+
+
+@pytest.mark.parametrize(
+    "body",
+    [b'{"LIMIT_BAL": \xff}', b'{"LIMIT_BAL": ' + b"9" * 5000 + b"}"],
+    ids=["invalid-utf8", "5000-digit-number"],
+)
+def test_unparseable_bodies_keep_the_error_shape(client, body) -> None:
+    r = client.post("/predict", content=body, headers={"Content-Type": "application/json"})
+    assert_error_shape(r, 422)
+
+
+async def _call_guard(chunks: list[bytes], headers: list[tuple[bytes, bytes]]) -> list[dict]:
+    """Drive RequestGuard directly, as a server does for a streamed (chunked) body."""
+    sent, inner_called = [], []
+
+    async def inner(scope, receive, send) -> None:
+        inner_called.append(True)
+
+    messages = [{"type": "http.request", "body": c, "more_body": i < len(chunks) - 1}
+                for i, c in enumerate(chunks)]  # fmt: skip
+
+    async def receive() -> dict:
+        return messages.pop(0)
+
+    async def send(message: dict) -> None:
+        sent.append(message)
+
+    scope = {"type": "http", "method": "POST", "path": "/predict", "headers": headers}
+    await RequestGuard(inner)(scope, receive, send)
+    return sent if not inner_called else [{"type": "passed-through"}]
+
+
+def test_streamed_body_without_content_length_is_limited() -> None:
+    import asyncio
+
+    chunk = b"x" * 4096
+    sent = asyncio.run(_call_guard([chunk] * 5, [(b"content-type", b"application/json")]))
+    assert sent[0]["status"] == 413
+
+
+def test_streamed_body_with_a_false_content_length_is_limited() -> None:
+    import asyncio
+
+    headers = [(b"content-type", b"application/json"), (b"content-length", b"10")]
+    sent = asyncio.run(_call_guard([b"x" * 4096] * 5, headers))
+    assert sent[0]["status"] == 413
+
+
+def test_startup_refuses_a_model_that_does_not_fit_the_schema(
+    bundle_path, tmp_path, monkeypatch
+) -> None:
+    bundle = load_bundle(bundle_path)
+    bundle["input_features"] = [*bundle["input_features"], "SEX"]
+    path = tmp_path / "model.joblib"
+    save_bundle(bundle, path)
+    monkeypatch.setenv("MODEL_PATH", str(path))
+    with pytest.raises(ValueError, match="API schema"), TestClient(app):
         pass

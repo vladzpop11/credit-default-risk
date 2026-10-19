@@ -27,13 +27,13 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from credit_default_risk import __version__, artifacts
 from credit_default_risk.config import load_config
-from credit_default_risk.predict import load_bundle, predict
+from credit_default_risk.predict import predict, read_bundle
 
 logger = logging.getLogger(__name__)
 
 MAX_BODY_BYTES = 16_384
 MAX_ERRORS = 20
-MAX_AMOUNT = 100_000_000  # NT$; the training data's largest amount is about 1.7 million
+MAX_AMOUNT = 100_000_000  # NT$; the largest amount in the training split is about 1.2 million
 
 Status = Field(ge=-2, le=9, description="Repayment status: -2..0 paid/revolving, 1-9 months late")
 Bill = Field(
@@ -147,7 +147,9 @@ class RequestGuard:
         except DuplicateKeyError as exc:
             return await error(422, "duplicate_key", str(exc))(scope, receive, send)
         except ValueError:
-            pass  # invalid JSON: FastAPI reports it as a validation error
+            # Malformed JSON, invalid UTF-8 or numbers beyond Python's digit limit. Answer
+            # here so the error keeps the documented shape (FastAPI would send a 400 string).
+            return await error(422, "json_invalid", "body is not valid JSON")(scope, receive, send)
 
         replayed = False
 
@@ -170,15 +172,26 @@ def model_path() -> Path:
     return Path(os.environ.get("MODEL_PATH", artifacts.model_path(load_config())))
 
 
+def check_bundle(bundle: dict) -> None:
+    """Fail at startup, not on every request, if the model doesn't fit this API."""
+    if set(bundle["input_features"]) != set(Client.model_fields):
+        raise ValueError(
+            f"model expects {sorted(bundle['input_features'])}, "
+            f"the API schema provides {sorted(Client.model_fields)}"
+        )
+    example = Client.model_validate(Client.model_config["json_schema_extra"]["example"])
+    predict(bundle, pd.DataFrame([example.model_dump()]))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    path = model_path()
-    bundle = load_bundle(path, expected_sha256=os.environ.get("MODEL_SHA256"))
+    bundle, sha = read_bundle(model_path(), expected_sha256=os.environ.get("MODEL_SHA256"))
     # One thread per prediction: the server already handles requests concurrently.
     bundle["pipeline"].set_params(model__n_jobs=1)
+    check_bundle(bundle)
     app.state.bundle = bundle
-    app.state.model_sha256 = artifacts.sha256(path)
-    app.state.is_evaluated = app.state.model_sha256 == artifacts.evaluated_model_sha(load_config())
+    app.state.model_sha256 = sha
+    app.state.is_evaluated = sha == artifacts.evaluated_model_sha(load_config())
     yield
 
 

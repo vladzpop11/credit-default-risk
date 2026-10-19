@@ -23,8 +23,9 @@ def verify_sha256(path: Path, expected: str) -> None:
     actual = sha256(path)
     if actual != expected:
         raise ValueError(
-            f"{path} has SHA-256 {actual}, expected {expected} (configs/config.yaml). "
-            "The upstream file changed; delete it and re-download, or update the pin knowingly."
+            f"{path} has SHA-256 {actual}, but configs/config.yaml pins {expected}. "
+            "The file is not the one the recorded results were produced from; restore it, "
+            "or update the pin knowingly."
         )
 
 

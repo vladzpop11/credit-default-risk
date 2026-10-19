@@ -25,6 +25,14 @@ def interval(values: list[float]) -> list[float]:
     return [float(np.percentile(values, 2.5)), float(np.percentile(values, 97.5))]
 
 
+def reproduces(again: dict, recorded: dict) -> bool:
+    """Same decisions and the same PR-AUC: the same model scored the same test clients."""
+    return (
+        again["confusion"] == recorded["confusion"]
+        and abs(again["pr_auc"] - recorded["pr_auc"]) <= 1e-12
+    )
+
+
 def main() -> None:
     cfg = load_config()
     recorded = artifacts.read_json(artifacts.test_metrics_path(cfg))
@@ -37,11 +45,7 @@ def main() -> None:
     proba = predict(bundle, test)["default_probability"].to_numpy()
     cost = bundle["metadata"]["cost"]
     t = bundle["threshold"]
-    again = metrics_at(y, proba, t, cost["fn"], cost["fp"])
-    if (
-        again["confusion"] != recorded["confusion"]
-        or abs(again["pr_auc"] - recorded["pr_auc"]) > 1e-12
-    ):
+    if not reproduces(metrics_at(y, proba, t, cost["fn"], cost["fp"]), recorded):
         sys.exit("re-scored test metrics do not match the recorded ones; refusing to continue")
 
     rng = np.random.default_rng(cfg["seed"])
