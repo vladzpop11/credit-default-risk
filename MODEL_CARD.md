@@ -99,6 +99,7 @@ The full list is in the README's [Limitations](README.md#limitations). The ones 
 ## How to check this card
 
 ```bash
+make fetch-model     # download the evaluated model from the GitHub release (SHA-256 checked)
 make verify          # models/model.joblib is the evaluated file (SHA-256)
 make test-model      # behavioural tests above
 make uncertainty     # re-scores the test set, stops unless it matches test_metrics.json exactly

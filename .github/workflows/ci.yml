@@ -51,7 +51,16 @@ jobs:
       # `make check` above skips them; run them on the model just trained.
       - run: make test-model
 
-      # Build the image and check it serves; the image is not published.
+      # The published artifact: download the evaluated model from the GitHub release,
+      # check it is the file the recorded results describe, and test it.
+      - run: make fetch-model
+
+      - run: make verify
+
+      - run: make test-model
+
+      # Build the image with the evaluated model and check it serves; the image is not
+      # published.
       - run: make docker-build
 
       - run: make docker-smoke

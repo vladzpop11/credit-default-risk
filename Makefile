@@ -4,7 +4,7 @@ PORT  ?= 8000
 
 .PHONY: help setup format lint test check data split eda cv train analysis evaluate \
         uncertainty verify reproduce-check test-model serve docker-build docker-run docker-stop \
-        docker-smoke latency demo
+        docker-smoke latency fetch-model demo
 
 help:  ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-16s %s\n", $$1, $$2}'
@@ -48,6 +48,9 @@ evaluate:  ## One-time test evaluation (refuses to run again unless FORCE=1)
 
 uncertainty:  ## Bootstrap intervals for the recorded test result (no new decisions)
 	uv run python -m credit_default_risk.uncertainty
+
+fetch-model:  ## Download the evaluated model from the GitHub release (SHA-256 verified)
+	uv run python -m credit_default_risk.fetch_model
 
 verify:  ## Is models/model.joblib the evaluated file? (exit 1 if not)
 	uv run python -m credit_default_risk.verify model

@@ -3,6 +3,8 @@ name = "credit-default-risk"
 version = "0.1.0"
 description = "Credit card default risk model: scikit-learn pipeline, cost-based threshold, FastAPI service in Docker"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     { name = "Vladzpop", email = "291580488+vladzpop11@users.noreply.github.com" }
 ]

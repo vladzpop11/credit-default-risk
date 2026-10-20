@@ -27,6 +27,7 @@ Requires Python 3.12 via [uv](https://docs.astral.sh/uv/), `make` and Docker. Th
 make demo        # download (SHA-256 checked), split, train if no model exists, build and start the API
 ```
 
+- **To serve the exact model the results describe,** run `make fetch-model` before `make demo`. It downloads the evaluated model from the [GitHub release](https://github.com/vladzpop11/credit-default-risk/releases/tag/model-v2) and checks its SHA-256 before it is ever loaded; `/health` then reports `"evaluated_model": true`. Without it, `make demo` trains a fresh model, about 15 s.
 - **Changing the port or container name:** `make demo PORT=8080 NAME=my-api`, then stop it with `make docker-stop NAME=my-api`.
 - **Once it's running:** open http://localhost:8000/docs, or run:
 
@@ -126,11 +127,11 @@ The test set has been evaluated twice, and both results are kept.
   | macOS x86_64 (the evaluated model) | 0.5589 | 0.16 |
   | Linux x86_64 (as in CI; printed by its `make reproduce-check` step) | 0.5573 | 0.16 |
 
-- **The released artifact is the evaluated model file, not a retrain.** Its SHA-256 is recorded in `reports/test_metrics.json`, and `GET /health` reports `"evaluated_model": true` only for that file. The file is not in git, so on a fresh clone `make demo` trains a new model, and `/health` says `false`.
+- **The released artifact is the evaluated model file, not a retrain.** Its SHA-256 is recorded in `reports/test_metrics.json`, and `GET /health` reports `"evaluated_model": true` only for that file. The file is not in git; it is published as a [release asset](https://github.com/vladzpop11/credit-default-risk/releases/tag/model-v2). `make fetch-model` downloads it and refuses any file whose SHA-256 differs, without unpickling it. On a fresh clone without it, `make demo` trains a new model, and `/health` says `false`.
 - **`make verify`** checks that `models/model.joblib` is the evaluated file. **`make reproduce-check`** checks that a local retrain is within 0.005 PR-AUC and 0.02 threshold of it; when the local model *is* the evaluated file, it passes and says so. Both fail when the check fails, and `make evaluate` refuses to run twice. The Python modules exit with status 1; through `make` you see `make: *** Error 1` and the shell gets status 2. Both are intended.
 - **Where training output goes:** retraining writes only to `models/` (the model and `train_summary.json`). The tracked record of the evaluated model in `reports/` is never overwritten.
 - **Model files are pickles.** Loading one runs code inside it, so only load files you trust. Set `MODEL_SHA256` to make the API refuse any other file before unpickling it.
-- **CI** checks dependencies for known vulnerabilities and runs the tests. It then retrains from the public source, runs `make reproduce-check` and the behavioural tests (`make test-model`), builds the image and smoke-tests it. The image is not published.
+- **CI** checks dependencies for known vulnerabilities and runs the tests. It then retrains from the public source, runs `make reproduce-check` and the behavioural tests (`make test-model`). Then it downloads the published evaluated model (`make fetch-model`), checks it is the recorded file (`make verify`), runs the behavioural tests on it, and builds and smoke-tests the image with it. The image is not published.
 
 </details>
 
@@ -183,7 +184,12 @@ flowchart LR
 
 ## Next steps
 
-- Publish the evaluated model file as a versioned artifact (a GitHub release asset, or a model registry such as MLflow).
+- Move model versions to a registry (for example MLflow) once retraining becomes routine; for one evaluated model, the release asset and its recorded SHA-256 are enough.
 - Add monotonic constraints on repayment status, and compare against the one-hot logistic regression as a more transparent option.
 - Replace the assumed cost matrix with real loss and intervention costs, and consider a three-way decision (approve / review / act).
 - Evaluate on a later time period, and monitor drift on incoming data.
+
+## License
+
+- **Code:** [MIT](LICENSE).
+- **Data:** the UCI dataset is licensed CC BY 4.0 and is not included in this repository. `make data` downloads it from UCI.

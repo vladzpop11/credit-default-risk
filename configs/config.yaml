@@ -39,3 +39,8 @@ model:
 threshold:
   cost_fn: 5
   cost_fp: 1
+
+# The evaluated model, published as a GitHub release asset. make fetch-model downloads it
+# and checks it against the SHA-256 in reports/test_metrics.json before it is used.
+release:
+  model_url: https://github.com/vladzpop11/credit-default-risk/releases/download/model-v2/model.joblib
