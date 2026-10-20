@@ -7,6 +7,10 @@
 
 The test split is not used here; see evaluate.py. Training refuses to replace a model
 that has already been evaluated on the test set (set FORCE=1 to override).
+
+--oof-only (make oof) runs step 1 only and writes data/processed/oof_chosen.csv for
+`make analysis`, leaving the model untouched: the way to regenerate the analysis after
+`make fetch-model`.
 """
 
 import os
@@ -56,7 +60,9 @@ def main() -> None:
     target = cfg["data"]["target"]
     cost_fn, cost_fp = cfg["threshold"]["cost_fn"], cfg["threshold"]["cost_fp"]
     model_path = artifacts.model_path(cfg)
-    ensure_not_evaluated(model_path, artifacts.evaluated_model_sha(cfg))
+    oof_only = "--oof-only" in sys.argv[1:]
+    if not oof_only:
+        ensure_not_evaluated(model_path, artifacts.evaluated_model_sha(cfg))
 
     train = load_split("train", cfg)
     X, y = prepare(train), train[target]
@@ -67,6 +73,11 @@ def main() -> None:
     pd.DataFrame({target: y, "proba": oof}, index=X.index).to_csv(
         project_path(cfg["data"]["processed_dir"]) / "oof_chosen.csv"
     )
+    if oof_only:
+        print(
+            f"out-of-fold predictions -> data/processed/oof_chosen.csv (threshold {threshold:.2f})"
+        )
+        return
 
     pipeline = chosen_pipeline(cfg).fit(X, y)
     metadata = {

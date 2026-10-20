@@ -2,7 +2,7 @@ IMAGE ?= credit-default-risk:dev
 NAME  ?= credit-default-risk
 PORT  ?= 8000
 
-.PHONY: help setup format lint test check data split eda cv train analysis evaluate \
+.PHONY: help setup format lint test check data split eda cv train oof margin analysis evaluate \
         uncertainty verify reproduce-check test-model serve docker-build docker-run docker-stop \
         docker-smoke latency fetch-model demo
 
@@ -39,6 +39,12 @@ cv:  ## Cross-validate all candidate models
 
 train:  ## Train the chosen model (refuses to replace the evaluated one unless FORCE=1)
 	uv run python -m credit_default_risk.train
+
+oof:  ## Out-of-fold predictions for make analysis, without touching the model (e.g. after fetch-model)
+	uv run python -m credit_default_risk.train --oof-only
+
+margin:  ## The model's cost margin over the "ever late" rule, with a paired bootstrap interval
+	uv run python -m credit_default_risk.margin
 
 analysis:  ## Threshold, error and fairness analysis (training split, out-of-fold)
 	uv run python -m credit_default_risk.analysis

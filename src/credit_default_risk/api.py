@@ -66,7 +66,11 @@ class Client(BaseModel):
         },
     )  # fmt: skip
 
-    LIMIT_BAL: float = Field(ge=1_000, le=10_000_000, description="Credit limit (NT$)")
+    LIMIT_BAL: float = Field(
+        ge=10_000,
+        le=10_000_000,
+        description="Credit limit (NT$; the training data starts at 10,000)",
+    )
     EDUCATION: int = Field(
         ge=0, le=6, description="1 graduate, 2 university, 3 high school, 0/4/5/6 other"
     )

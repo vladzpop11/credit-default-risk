@@ -268,7 +268,10 @@ def main() -> None:
     if summary is None:
         raise SystemExit("no models/train_summary.json: run make train first")
     threshold = summary["oof_metrics"]["threshold"]
-    oof = pd.read_csv(project_path(cfg["data"]["processed_dir"]) / "oof_chosen.csv", index_col="ID")
+    oof_path = project_path(cfg["data"]["processed_dir"]) / "oof_chosen.csv"
+    if not oof_path.exists():
+        raise SystemExit("no out-of-fold predictions (data/processed/oof_chosen.csv): run make oof")
+    oof = pd.read_csv(oof_path, index_col="ID")
     train = load_split("train", cfg)
     X, y_series = prepare(train), train[target]
     if not X.index.equals(oof.index):

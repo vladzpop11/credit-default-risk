@@ -8,6 +8,7 @@ model's measurement goes to models/latency.json (git-ignored).
 """
 
 import json
+import math
 import platform
 import statistics
 import sys
@@ -52,8 +53,8 @@ def main() -> None:
         "client_machine": f"{platform.system()} {platform.machine()}",
         "requests": N_REQUESTS,
         "mean_ms": statistics.mean(ms),
-        "p50_ms": ms[len(ms) // 2],
-        "p95_ms": ms[int(0.95 * len(ms)) - 1],
+        "p50_ms": statistics.median(ms),
+        "p95_ms": ms[math.ceil(0.95 * len(ms)) - 1],  # nearest rank
         "max_ms": ms[-1],
         "model_sha256": health["model_sha256"],
         "evaluated_model": health["evaluated_model"],

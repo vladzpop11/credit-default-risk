@@ -1,0 +1,14 @@
+{
+  "cut": 0.05350272232304898,
+  "ci95": [
+    0.031159419062871018,
+    0.07510002687920837
+  ],
+  "resamples": 2000,
+  "threshold": 0.16,
+  "cost": {
+    "fn": 5,
+    "fp": 1
+  },
+  "data": "training split, out-of-fold predictions"
+}

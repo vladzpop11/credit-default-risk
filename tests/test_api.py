@@ -91,6 +91,7 @@ def test_ints_are_accepted_for_float_fields(client, payload) -> None:
         ("LIMIT_BAL", "50000"),
         ("LIMIT_BAL", 1e-305),  # tiny limits would overflow utilisation
         ("LIMIT_BAL", 500),
+        ("LIMIT_BAL", 9_999),  # below the training minimum (10,000)
         ("LIMIT_BAL", 1e12),
         ("BILL_AMT1", 1e300),
         ("PAY_AMT1", -1),

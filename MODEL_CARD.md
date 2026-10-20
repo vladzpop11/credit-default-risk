@@ -46,7 +46,7 @@ On the 6,000 test clients, threshold 0.16, with 95% bootstrap intervals ([test_m
 **Against simple policies** ([error_analysis.md](reports/error_analysis.md)):
 
 - **Flagging everyone** costs 0.779 per client. The model cuts that by 27% (23–31%) on test.
-- **The rule "flag anyone ever late in 6 months"** costs 0.574 out-of-fold, against the model's 0.543. So most of the gain comes from a rule with no parameters; the model adds about 5% on top. The rule was not evaluated on the test set.
+- **The rule "flag anyone ever late in 6 months"** costs 0.574 out-of-fold, against the model's 0.543. So most of the gain comes from a rule with no parameters; the model adds about 5% on top (95% CI 3–8%, paired bootstrap out-of-fold; [rule_margin.json](reports/rule_margin.json)). The rule was not evaluated on the test set, so this margin is not confirmed there.
 - **How much the model adds depends on the assumed 5:1 cost ratio:** 3% (at 4:1) to 27% (at 10:1) over the rule.
 
 **Calibration** (out-of-fold): Brier score 0.134. Probabilities near the threshold are within about 1 percentage point of the observed rate. The extremes are mildly overconfident, by up to 1.6 points.
@@ -64,7 +64,7 @@ Sex, marital status and age are not inputs. Dropping them changed cross-validate
 | Age 41–60 | 23.8% | **22.5%** | 36.6% |
 | Age 61+ (214 clients) | 27.6% | 25.1% | 36.8% |
 
-- **Young clients get more false alarms.** Good clients aged 21–25 are flagged 49.6% of the time, against 34.1% at 26–40. Their scores are calibrated, though. Most of the gap comes from lower credit limits: at the 26–40 limit mix, their false positive rate would be 30.4%. The model inherits the bank's earlier limit decisions.
+- **Young clients get more false alarms.** Good clients aged 21–25 are flagged 49.6% of the time, against 34.1% at 26–40. Their scores are calibrated, though. Lower credit limits explain all of the gap: at the 26–40 limit mix, their false positive rate would be 30.4%, below the 34.1% of ages 26–40. The model inherits the bank's earlier limit decisions.
 - **Clients aged 41–60 are slightly under-predicted:** by 1.3 points, significant after Bonferroni correction for six groups. The model is lenient on them, not harsh. Men show the same direction, just short of significance.
 - **Before any real use,** both findings would need a documented review, and the false positive rates should be monitored by group.
 
@@ -84,7 +84,7 @@ Sex, marital status and age are not inputs. Dropping them changed cross-validate
 | Latency, one client, in-process | median < 250 ms | 24 ms | passes (time not recorded) |
 
 - **The 3 → 6 months failure is a known flaw,** marked as an expected failure (`xfail(strict=True)`). Predicted risk peaks at three months late and falls for longer delays, because the training data has very few such clients. Monotonic constraints would fix it. When they do, the test starts passing and the strict marker fails the run, so the marker cannot be forgotten.
-- **The payment effects are right on average but not for every client.** Paying the previous bill in full *raises* the score for 24% of clients who had been underpaying. Among clients who were not late, that share is 29%, and the average effect is small (−0.013). For clients with revolving credit (`PAY_1 = 0`), the average score falls from 0.147 when they pay nothing to 0.119 when they pay a quarter of the bill, and paying more barely moves it. The trees fit no smooth payment effect, which is one more reason for monotonic constraints.
+- **The payment effects are right on average but not for every client.** Paying the previous bill in full *raises* the score for 24% of clients who had been underpaying. Among clients who were not late last month (`PAY_1 ≤ 0`), that share is 29%, and the average effect is small (−0.013). For clients with revolving credit (`PAY_1 = 0`), the average score falls from 0.147 when they pay nothing to 0.119 when they pay a quarter of the bill, and paying more barely moves it. The trees fit no smooth payment effect, which is one more reason for monotonic constraints.
 - **Thresholds were set from the measured values,** with room for the Linux retrain. They are regression checks, not proof of the behaviour in general.
 
 ## Limitations

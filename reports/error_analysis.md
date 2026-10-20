@@ -27,7 +27,7 @@ Every number here comes from out-of-fold predictions on the 24,000 training clie
 | **Model, threshold 0.16** | **45.5%** | **76.7%** | **0.543** | **30.2%** |
 
 - Under the 5:1 assumption, flagging everyone is cheaper than approving everyone, so it is the fair trivial baseline.
-- **A one-line rule with no fitted parameters already gets most of the way.** "Flag anyone who was late in the last 6 months" cuts the cost by 26.3%. The model adds a further 5.3% reduction over that rule (0.543 vs 0.574), and catches 11 points more of the defaulters.
+- **A one-line rule with no fitted parameters already gets most of the way.** "Flag anyone who was late in the last 6 months" cuts the cost by 26.3%. The model adds a further 5.4% reduction over that rule (0.543 vs 0.574; 95% CI 3.1–7.5%, paired bootstrap, [rule_margin.json](rule_margin.json)), and catches 11 points more of the defaulters.
 - **That margin, not the 30% against flagging everyone, is the value the model adds.**
 
 ## Sensitivity to the cost ratio
@@ -105,5 +105,5 @@ Sex and age are not model inputs, but correlated features can still produce grou
 
 - **Clients aged 41–60 are slightly under-predicted.** The model gives them about 1.3 points less risk than they show, so it is *lenient* on this group, not harsh. Men show the same direction, just short of significance.
 - **Young clients bear more false alarms.** Good clients aged 21–25 are wrongly flagged 49.6% of the time, against 34.1% for ages 26–40. They are not mis-calibrated: their mean prediction matches their default rate.
-- **Most of that gap is explained by credit limits.** The median limit is NT$50k at ages 21–25 against NT$160k at 26–40. Reweighting the young good clients to the credit-limit mix of ages 26–40 lowers their false positive rate to 30.4%.
+- **Credit limits explain all of that gap.** The median limit is NT$50k at ages 21–25 against NT$160k at 26–40. Reweighting the young good clients to the credit-limit mix of ages 26–40 lowers their false positive rate to 30.4%.
 - The model does not use age, but it inherits the bank's lower limits for young clients, and it slightly understates risk for middle-aged clients. Both would need a documented review before any real use.

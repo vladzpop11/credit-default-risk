@@ -13,11 +13,13 @@ Predict whether a credit card client will miss next month's payment, choose the 
 | Error-cost cut vs flagging everyone, the cheaper trivial policy | **27%** (23–31%) |
 | Error-cost cut vs approving everyone | 49% (46–52%) |
 
-- **A simple rule gets most of the way.** "Flag anyone who was late in the last 6 months" has no fitted parameters and already cuts the cost by 26% on the training data. The model's real added value is a further **5%** cost reduction, and 11 percentage points more defaulters caught. On this data, recent repayment behaviour carries most of the signal.
+- **A simple rule gets most of the way.** "Flag anyone who was late in the last 6 months" has no fitted parameters and already cuts the cost by 26% on the training data. The model's real added value is a further **5%** cost reduction (95% CI 3–8%, out-of-fold; `make margin`), and 11 percentage points more defaulters caught. The rule was not evaluated on the test set, so this margin is not confirmed there. On this data, recent repayment behaviour carries most of the signal.
 - **Sex, marital status and age are not used.** Dropping them cost nothing measurable in cross-validation.
 - **[Model card](MODEL_CARD.md):** intended use, performance, fairness audit and behavioural tests on one page.
 
 ![Expected error cost per client by decision threshold](reports/figures/cost_curve.png)
+
+*Expected error cost by threshold, on the training data's out-of-fold predictions (how the threshold was chosen).*
 
 ## How to run
 
@@ -66,7 +68,7 @@ make docker-stop
    - The same `prepare()` function runs in training and in the API.
    - Tests check that the model inputs cannot depend on the target, that every out-of-fold score comes from a pipeline refitted without that fold, and that a training path scoring rows its model has seen would be caught.
 4. **Model selection** ([reports/cv_results.md](reports/cv_results.md)): stratified 5-fold cross-validation, with every model on the same folds and compared through paired fold differences.
-   - **XGBoost was chosen before the test set was opened.** With 5 folds it cannot be distinguished from random forest (+0.004 PR-AUC, p = 0.23), or from a logistic regression that one-hot encodes the repayment codes, compared like for like without the sensitive attributes (+0.011, p = 0.25).
+   - **XGBoost was chosen before the test set was opened.** With 5 folds it cannot be distinguished from random forest (+0.004 PR-AUC, p = 0.23), or from a logistic regression that one-hot encodes the repayment codes, compared like for like without the sensitive attributes (+0.010, p = 0.25).
    - The one-hot logistic regression was added after a review. The original logistic regression, which treated the codes as numbers, loses clearly (+0.045, p = 0.003).
    - p-values come from paired t-tests with the Nadeau–Bengio correction for overlapping cross-validation training sets.
    - **The tie was broken by speed:** one cross-validation run takes about 5–9 s for XGBoost against 34–43 s for the random forest on this machine (the times vary with load; see `cv_results.md`).
@@ -129,7 +131,8 @@ The test set has been evaluated twice, and both results are kept.
 
 - **The released artifact is the evaluated model file, not a retrain.** Its SHA-256 is recorded in `reports/test_metrics.json`, and `GET /health` reports `"evaluated_model": true` only for that file. The file is not in git; it is published as a [release asset](https://github.com/vladzpop11/credit-default-risk/releases/tag/model-v2). `make fetch-model` downloads it and refuses any file whose SHA-256 differs, without unpickling it. On a fresh clone without it, `make demo` trains a new model, and `/health` says `false`.
 - **`make verify`** checks that `models/model.joblib` is the evaluated file. **`make reproduce-check`** checks that a local retrain is within 0.005 PR-AUC and 0.02 threshold of it; when the local model *is* the evaluated file, it passes and says so. Both fail when the check fails, and `make evaluate` refuses to run twice. The Python modules exit with status 1; through `make` you see `make: *** Error 1` and the shell gets status 2. Both are intended.
-- **Where training output goes:** retraining writes only to `models/` (the model and `train_summary.json`). The tracked record of the evaluated model in `reports/` is never overwritten.
+- **Where training output goes:** retraining writes to `models/` (the model and `train_summary.json`) and the out-of-fold predictions to `data/processed/oof_chosen.csv`. The tracked record of the evaluated model in `reports/` is never overwritten.
+- **Regenerating the analysis after `make fetch-model`:** run `make oof` first. It recomputes the out-of-fold predictions without touching the model; `make analysis` and `make margin` then reproduce the committed reports.
 - **Model files are pickles.** Loading one runs code inside it, so only load files you trust. Set `MODEL_SHA256` to make the API refuse any other file before unpickling it.
 - **CI** checks dependencies for known vulnerabilities and runs the tests. It then retrains from the public source, runs `make reproduce-check` and the behavioural tests (`make test-model`). Then it downloads the published evaluated model (`make fetch-model`), checks it is the recorded file (`make verify`), runs the behavioural tests on it, and builds and smoke-tests the image with it. The image is not published.
 
@@ -171,12 +174,12 @@ flowchart LR
   - The cut against the best trivial policy ranges from 10% (10:1) to 40% (3:1).
   - The model's lead over the "ever late" rule ranges from 3% (4:1) to 27% (10:1); see the sensitivity table in [error_analysis.md](reports/error_analysis.md).
 - **Indirect group differences remain.**
-  - Good clients aged 21–25 are wrongly flagged 50% of the time, against 34% for ages 26–40. That is mostly because the bank gave them lower credit limits; at the 26–40 limit mix their rate would be 30%.
+  - Good clients aged 21–25 are wrongly flagged 50% of the time, against 34% for ages 26–40. Their lower credit limits explain all of the gap: at the 26–40 limit mix their rate would be 30%, below the 34%.
   - The model slightly under-predicts risk for ages 41–60 (22.5% predicted vs 23.8% observed). That gap is significant after correcting for 6 comparisons; men show the same direction, just short of significance.
 - **The model behaves oddly where data is thin.**
-  - Predicted risk peaks at three months late and *drops* for longer delays. Only one training client was four or more months late in all six months.
+  - Predicted risk peaks at three months late and *drops* for longer delays, also for clients whose whole history is consistent with the delay. Long delays are rare: 111 training clients were four or more months late last month.
   - "Other" education (386 training clients, 7.3% default rate) sharply lowers predicted risk.
-  - Credit limits below NT$10k, the training minimum, are treated like NT$10k.
+  - Credit limits below NT$10k, the training minimum, would push scores outside anything the model has seen, so the API refuses them.
   - Monotonic constraints would be a sensible next step. A behavioural test records the long-delay drop as an expected failure until then; see the [model card](MODEL_CARD.md#behavioural-tests).
 - **The probabilities are mildly overconfident.** The lowest deciles are under-predicted and the highest over-predicted, each by up to 1.6 percentage points (Brier score 0.134). Calibration near the threshold is good.
 - **The API is not production hardening on its own.** TLS, rate limits and timeouts for slow clients belong in a reverse proxy in front of it.

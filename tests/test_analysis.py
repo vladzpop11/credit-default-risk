@@ -77,17 +77,21 @@ def test_baselines_and_rule_costs() -> None:
     assert table.loc["rule: ever late in 6 months", "cost per client"] == pytest.approx(6 / 5)
 
 
-def test_cost_sensitivity_columns_are_consistent(calibrated) -> None:
+def test_cost_sensitivity_matches_direct_counts(calibrated) -> None:
     y, proba = calibrated
     ever_late = proba > 0.3
     table = cost_sensitivity(y, proba, ever_late)
     for _, row in table.iterrows():
-        rule_cost = row["best trivial policy cost"] * (
-            1 - row["'ever late' rule cut vs best trivial"]
-        )
-        assert row["model cut vs 'ever late' rule"] == pytest.approx(
-            1 - row["model cost"] / rule_cost
-        )
+        ratio = int(row["missed : false alarm"].split(":")[0])
+        flagged = proba >= row["threshold"]
+        # Costs counted directly: missed defaulters cost `ratio`, false alarms 1.
+        model = (ratio * np.sum(y & ~flagged) + np.sum(~y & flagged)) / len(y)
+        rule = (ratio * np.sum(y & ~ever_late) + np.sum(~y & ever_late)) / len(y)
+        trivial = min(ratio * y.mean(), (~y).mean())  # approve everyone / flag everyone
+        assert row["model cost"] == pytest.approx(model)
+        assert row["best trivial policy cost"] == pytest.approx(trivial)
+        assert row["model cut vs 'ever late' rule"] == pytest.approx(1 - model / rule)
+        assert row["'ever late' rule cut vs best trivial"] == pytest.approx(1 - rule / trivial)
     assert (table["model cut vs best trivial"] > 0).all()
 
 
@@ -146,3 +150,14 @@ def test_oof_provenance_check(calibrated) -> None:
     summary = {"oof_metrics": {"pr_auc": average_precision_score(y, proba)}}
     assert oof_matches_summary(y, proba, summary)
     assert not oof_matches_summary(y, proba, {"oof_metrics": {"pr_auc": 0.5}})
+
+
+def test_paired_margin_is_zero_against_itself_and_brackets_the_estimate(calibrated) -> None:
+    from credit_default_risk.margin import paired_margin
+
+    y, proba = calibrated
+    flagged, rule = proba >= 0.2, proba > 0.3
+    same = paired_margin(y, rule, rule, 5, 1, seed=0)
+    assert same["cut"] == 0 and same["ci95"] == [0.0, 0.0]
+    result = paired_margin(y, flagged, rule, 5, 1, seed=0)
+    assert result["ci95"][0] <= result["cut"] <= result["ci95"][1]
