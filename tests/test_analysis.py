@@ -135,3 +135,14 @@ def test_latency_record_is_only_updated_for_the_evaluated_model() -> None:
     cfg = load_config()
     assert output_path(cfg, evaluated_model=True).parent.name == "reports"
     assert output_path(cfg, evaluated_model=False).parent.name == "models"
+
+
+def test_oof_provenance_check(calibrated) -> None:
+    from sklearn.metrics import average_precision_score
+
+    from credit_default_risk.analysis import oof_matches_summary
+
+    y, proba = calibrated
+    summary = {"oof_metrics": {"pr_auc": average_precision_score(y, proba)}}
+    assert oof_matches_summary(y, proba, summary)
+    assert not oof_matches_summary(y, proba, {"oof_metrics": {"pr_auc": 0.5}})

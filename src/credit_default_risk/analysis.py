@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 from sklearn.inspection import permutation_importance
-from sklearn.metrics import brier_score_loss
+from sklearn.metrics import average_precision_score, brier_score_loss
 
 from credit_default_risk import artifacts
 from credit_default_risk.config import load_config, project_path
@@ -244,6 +244,11 @@ def format_cell(v: object, digits: int) -> str:
     return str(v)
 
 
+def oof_matches_summary(y: np.ndarray, proba: np.ndarray, summary: dict) -> bool:
+    """Do the out-of-fold predictions belong to the training run the summary describes?"""
+    return abs(average_precision_score(y, proba) - summary["oof_metrics"]["pr_auc"]) < 1e-9
+
+
 def to_markdown(table: pd.DataFrame, digits: int = 3) -> str:
     # itertuples keeps each column's dtype; iterrows would upcast mixed rows to float.
     cols = list(table.columns)
@@ -269,6 +274,12 @@ def main() -> None:
     if not X.index.equals(oof.index):
         raise ValueError("oof_chosen.csv does not match the training split; run make train")
     y, proba = y_series.to_numpy().astype(bool), oof["proba"].to_numpy()
+    if not oof_matches_summary(y, proba, summary):
+        print(
+            "NOTE: oof_chosen.csv comes from a different training run than "
+            "models/train_summary.json (e.g. after make fetch-model on a machine that had "
+            "trained). The tables describe the cross-validation of the last local `make train`."
+        )
 
     plot_cost_curve(y_series, oof["proba"], cfg, threshold, figures / "cost_curve.png")
     importance = fold_permutation_importance(X, y_series, cfg)
